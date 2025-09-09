@@ -6,13 +6,15 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { createThemedStyles } from './utils/themeStyles';
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
 import HomeScreen from './screens/HomeScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
 import ScheduleTableScreen from './screens/ScheduleTableScreen';
-import OnboardingScreen from './screens/OnboardingScreen';
 import UserProfileScreen from './screens/UserProfileScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import { UserStorage } from './services/UserStorage';
 import CustomDrawerContent from './components/CustomDrawerContent';
 
@@ -21,6 +23,8 @@ const Drawer = createDrawerNavigator();
 
 // Drawer Navigator Component
 function DrawerNavigator() {
+  const { theme } = useTheme();
+  
   return (
     <Drawer.Navigator
       drawerContent={(props) => <CustomDrawerContent {...props} />}
@@ -29,6 +33,7 @@ function DrawerNavigator() {
         drawerType: 'front',
         drawerStyle: {
           width: 280,
+          backgroundColor: theme.colors.navigationBackground,
         },
       }}
     >
@@ -36,13 +41,17 @@ function DrawerNavigator() {
       <Drawer.Screen name="Schedule" component={ScheduleScreen} />
       <Drawer.Screen name="ScheduleTable" component={ScheduleTableScreen} />
       <Drawer.Screen name="Profile" component={UserProfileScreen} />
+      <Drawer.Screen name="Settings" component={SettingsScreen} />
     </Drawer.Navigator>
   );
 }
 
-export default function App() {
+// Main App Component with Theme Support
+function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [initialRoute, setInitialRoute] = useState('Login');
+  const { theme } = useTheme();
+  const styles = createThemedStyles(theme);
 
   useEffect(() => {
     checkAuthStatus();
@@ -55,19 +64,19 @@ export default function App() {
       if (!isLoggedIn) {
         setInitialRoute('Login');
       } else {
-        // Check if user has completed onboarding
+        // Check if user has completed profile
         const profileData = await AsyncStorage.getItem('@schedax_user_profile');
         
         if (!profileData) {
-          // No basic profile, start with onboarding
-          setInitialRoute('Onboarding');
+          // No profile, redirect to UserProfile for complete profile setup
+          setInitialRoute('UserProfile');
         } else {
           const profile = JSON.parse(profileData);
-          // Check if extended profile is completed
+          // Check if profile is completed
           if (profile.profileCompleted) {
             setInitialRoute('MainApp');
           } else {
-            // Basic profile exists but extended profile not completed
+            // Profile exists but not completed, continue with UserProfile
             setInitialRoute('UserProfile');
           }
         }
@@ -82,8 +91,8 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <View className="flex-1 justify-center items-center bg-white">
-        <Text className="text-xl text-blue-500 font-semibold">Loading SCHEDAX...</Text>
+      <View style={styles.loadingContainer}>
+        <Text style={[styles.textTitle, { color: theme.colors.primary }]}>Loading SCHEDAX...</Text>
       </View>
     );
   }
@@ -93,10 +102,17 @@ export default function App() {
       <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
         <Stack.Screen name="MainApp" component={DrawerNavigator} />
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }

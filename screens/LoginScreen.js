@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserStorage } from '../services/UserStorage';
+import { androidStyles, colors, getGradientBackground } from '../utils/androidStyles';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -27,8 +28,8 @@ export default function LoginScreen({ navigation }) {
       
       // Check if user has completed profile setup
       const profileData = await AsyncStorage.getItem('@schedax_user_profile');
-      const hasProfile = profileData !== null;
-      const nextScreen = hasProfile ? 'MainApp' : 'Onboarding';
+      const hasProfile = profileData && JSON.parse(profileData).profileCompleted;
+      const nextScreen = hasProfile ? 'MainApp' : 'UserProfile';
       
       Alert.alert('Success', `Welcome back, ${user.email}!`, [
         { text: 'OK', onPress: () => navigation.reset({

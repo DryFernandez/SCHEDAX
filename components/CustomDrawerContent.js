@@ -105,13 +105,12 @@ export default function CustomDrawerContent(props) {
 
         <TouchableOpacity 
           className="flex-row items-center py-4 px-2 border-b border-gray-100"
-          onPress={() => {/* Navigate to Settings when implemented */}}
+          onPress={() => props.navigation.navigate('Settings')}
         >
           <View className="bg-gray-100 w-10 h-10 rounded-lg items-center justify-center mr-3">
             <Text className="text-gray-600 text-lg">⚙️</Text>
           </View>
-          <Text className="text-gray-400 text-base font-medium">Settings</Text>
-          <Text className="text-gray-400 text-xs ml-auto">Coming Soon</Text>
+          <Text className="text-gray-800 text-base font-medium">Settings</Text>
         </TouchableOpacity>
       </View>
 

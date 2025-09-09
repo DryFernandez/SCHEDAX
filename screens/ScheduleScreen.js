@@ -4,24 +4,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as DocumentPicker from 'expo-document-picker';
 import { UserStorage } from '../services/UserStorage';
 
+
 const SCHEDULES_STORAGE_KEY = '@schedax_schedules';
 
 export default function ScheduleScreen({ navigation }) {
   const [schedules, setSchedules] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [extractedSchedule, setExtractedSchedule] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [newSchedule, setNewSchedule] = useState({
     title: '',
     description: '',
-    date: '',
-    time: '',
-    university: '',
     pdfFile: null,
   });
 
   useEffect(() => {
     loadUserData();
     loadSchedules();
+    loadExtractedSchedule();
   }, []);
 
   const loadUserData = async () => {
@@ -30,6 +31,22 @@ export default function ScheduleScreen({ navigation }) {
       setCurrentUser(user);
     } catch (error) {
       console.error('Error loading user data:', error);
+    }
+  };
+
+  const loadExtractedSchedule = async () => {
+    try {
+      const profileData = await AsyncStorage.getItem('@schedax_user_profile');
+      if (profileData) {
+        const profile = JSON.parse(profileData);
+        setUserProfile(profile);
+        
+        if (profile.extractedSchedule) {
+          setExtractedSchedule(profile.extractedSchedule);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading extracted schedule:', error);
     }
   };
 
@@ -55,14 +72,30 @@ export default function ScheduleScreen({ navigation }) {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
+        const pdfFile = {
+          name: result.assets[0].name,
+          uri: result.assets[0].uri,
+          size: result.assets[0].size,
+        };
+        
         setNewSchedule(prev => ({ 
           ...prev, 
-          pdfFile: {
-            name: result.assets[0].name,
-            uri: result.assets[0].uri,
-            size: result.assets[0].size,
-          }
+          pdfFile: pdfFile
         }));
+
+        // Show processing alert
+        Alert.alert(
+          'Procesando PDF',
+          'Analizando el archivo PDF para extraer información del horario...',
+          [{ text: 'OK' }]
+        );
+
+        // PDF selected - will be saved with schedule
+        Alert.alert(
+          'PDF Seleccionado',
+          `Archivo PDF: ${pdfFile.name}\n\nEl horario será guardado y podrás ver/editar los datos manualmente.`,
+          [{ text: 'OK' }]
+        );
       }
     } catch (error) {
       console.error('Error picking PDF:', error);
@@ -72,28 +105,36 @@ export default function ScheduleScreen({ navigation }) {
 
   const saveSchedule = async () => {
     if (!newSchedule.title.trim()) {
-      Alert.alert('Error', 'Please enter a title for your schedule');
-      return;
-    }
-
-    if (!newSchedule.university.trim()) {
-      Alert.alert('Error', 'Please enter your university or institution');
+      Alert.alert('Error', 'Por favor ingresa un título para tu horario');
       return;
     }
 
     try {
+      if (!currentUser || !currentUser.id) {
+        Alert.alert('Error', 'User not found. Please log in again.');
+        return;
+      }
+
       const schedulesJson = await AsyncStorage.getItem(SCHEDULES_STORAGE_KEY);
       const allSchedules = schedulesJson ? JSON.parse(schedulesJson) : [];
+      
+      // Get current date and time automatically
+      const now = new Date();
+      const currentDate = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+      
+      // Create schedule without PDF extraction
       
       const schedule = {
         id: Date.now().toString(),
         userId: currentUser.id,
         title: newSchedule.title.trim(),
         description: newSchedule.description.trim(),
-        date: newSchedule.date.trim() || new Date().toISOString().split('T')[0],
-        time: newSchedule.time.trim() || '12:00',
-        university: newSchedule.university.trim(),
+        date: currentDate,
+        time: currentTime,
+        university: userProfile?.institucion || 'Universidad',
         pdfFile: newSchedule.pdfFile,
+        extractedData: null, // No PDF extraction
         createdAt: new Date().toISOString(),
         completed: false,
       };
@@ -102,10 +143,15 @@ export default function ScheduleScreen({ navigation }) {
       await AsyncStorage.setItem(SCHEDULES_STORAGE_KEY, JSON.stringify(allSchedules));
       
       setSchedules(prev => [...prev, schedule]);
-      setNewSchedule({ title: '', description: '', date: '', time: '', university: '', pdfFile: null });
+      setNewSchedule({ title: '', description: '', pdfFile: null });
       setIsModalVisible(false);
       
-      Alert.alert('Success', 'Schedule created successfully!');
+      // Show success message with extraction info
+      const extractionInfo = extractedData 
+        ? `\n\n📄 Información extraída:\n• Método: ${extractedData.extractionMethod}\n• Cursos: ${extractedData.courses.length}\n• Estudiante: ${extractedData.studentInfo.name}`
+        : '';
+      
+      Alert.alert('Éxito', `Horario creado exitosamente!${extractionInfo}`);
     } catch (error) {
       console.error('Error saving schedule:', error);
       Alert.alert('Error', 'Failed to save schedule. Please try again.');
@@ -192,6 +238,52 @@ export default function ScheduleScreen({ navigation }) {
         </View>
       </View>
 
+      {/* Extracted Schedule Section */}
+      {extractedSchedule && (
+        <View className="bg-blue-50 p-4 border-b border-blue-200">
+          <View className="flex-row items-center mb-3">
+            <Text className="text-blue-800 text-lg font-bold flex-1">📄 Tu Horario Académico</Text>
+            <TouchableOpacity 
+              className="bg-blue-500 px-3 py-1 rounded-lg"
+              onPress={() => navigation.navigate('ScheduleTable')}
+            >
+              <Text className="text-white text-sm font-medium">Ver Tabla</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {Object.entries(extractedSchedule).map(([day, classes]) => (
+              <View key={day} className="bg-white rounded-lg p-3 mr-3 min-w-32">
+                <Text className="font-bold text-gray-800 text-center mb-2">{day}</Text>
+                <Text className="text-blue-600 text-xs text-center">{classes.length} clases</Text>
+                {classes.slice(0, 2).map((classItem, index) => (
+                  <View key={index} className="mt-1">
+                    <Text className="text-xs text-gray-600">{classItem.time}</Text>
+                    <Text className="text-xs font-medium text-gray-800" numberOfLines={1}>
+                      {classItem.course}
+                    </Text>
+                  </View>
+                ))}
+                {classes.length > 2 && (
+                  <Text className="text-xs text-gray-500 mt-1">+{classes.length - 2} más</Text>
+                )}
+              </View>
+            ))}
+          </ScrollView>
+          
+          {userProfile && (
+            <View className="mt-3 pt-3 border-t border-blue-200">
+              <Text className="text-blue-700 text-sm">
+                👤 {userProfile.nombre} {userProfile.apellido} • 🎓 {userProfile.carrera}
+              </Text>
+              <Text className="text-blue-600 text-xs">
+                📋 {userProfile.matricula} • 📅 {userProfile.periodo}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {/* Schedules List */}
       <ScrollView className="flex-1 p-5">
         {schedules.length === 0 ? (
@@ -274,7 +366,7 @@ export default function ScheduleScreen({ navigation }) {
         <View className="flex-1 bg-black bg-opacity-50 justify-end">
           <View className="bg-white rounded-t-3xl p-6">
             <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-xl font-bold text-gray-800">New Schedule</Text>
+              <Text className="text-xl font-bold text-gray-800">Nuevo Horario</Text>
               <TouchableOpacity onPress={() => setIsModalVisible(false)}>
                 <Text className="text-gray-500 text-2xl">×</Text>
               </TouchableOpacity>
@@ -283,60 +375,29 @@ export default function ScheduleScreen({ navigation }) {
             <ScrollView className="max-h-96">
               <View className="space-y-4">
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Title *</Text>
+                  <Text className="text-sm font-medium text-gray-700 mb-2">Título *</Text>
                   <TextInput
                     className="border border-gray-300 rounded-lg px-3 py-3 text-base"
-                    placeholder="Enter schedule title"
+                    placeholder="Ingresa el título del horario"
                     value={newSchedule.title}
                     onChangeText={(text) => setNewSchedule(prev => ({ ...prev, title: text }))}
                   />
                 </View>
 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-2">University/Institution *</Text>
+                  <Text className="text-sm font-medium text-gray-700 mb-2">Descripción</Text>
                   <TextInput
                     className="border border-gray-300 rounded-lg px-3 py-3 text-base"
-                    placeholder="Enter your university or institution"
-                    value={newSchedule.university}
-                    onChangeText={(text) => setNewSchedule(prev => ({ ...prev, university: text }))}
-                  />
-                </View>
-
-                <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Description</Text>
-                  <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base"
-                    placeholder="Enter description (optional)"
+                    placeholder="Describe tu horario (opcional)"
                     multiline
-                    numberOfLines={2}
+                    numberOfLines={3}
                     value={newSchedule.description}
                     onChangeText={(text) => setNewSchedule(prev => ({ ...prev, description: text }))}
                   />
                 </View>
 
-                <View className="flex-row space-x-3">
-                  <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-2">Date</Text>
-                    <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base"
-                      placeholder="YYYY-MM-DD"
-                      value={newSchedule.date}
-                      onChangeText={(text) => setNewSchedule(prev => ({ ...prev, date: text }))}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-2">Time</Text>
-                    <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base"
-                      placeholder="HH:MM"
-                      value={newSchedule.time}
-                      onChangeText={(text) => setNewSchedule(prev => ({ ...prev, time: text }))}
-                    />
-                  </View>
-                </View>
-
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Schedule PDF</Text>
+                  <Text className="text-sm font-medium text-gray-700 mb-2">Archivo del Horario</Text>
                   <TouchableOpacity 
                     className="border-2 border-dashed border-gray-300 rounded-lg p-4 items-center"
                     onPress={pickPDFFile}
@@ -350,20 +411,52 @@ export default function ScheduleScreen({ navigation }) {
                         <Text className="text-xs text-gray-500 mt-1">
                           {(newSchedule.pdfFile.size / 1024).toFixed(1)} KB
                         </Text>
-                        <Text className="text-xs text-blue-600 mt-2">Tap to change</Text>
+                        <Text className="text-xs text-blue-600 mt-2">Toca para cambiar</Text>
                       </View>
                     ) : (
                       <View className="items-center">
                         <Text className="text-lg mb-2">📄</Text>
                         <Text className="text-sm font-medium text-gray-600">
-                          Upload Schedule PDF
+                          Subir archivo PDF del horario
                         </Text>
                         <Text className="text-xs text-gray-400 mt-1">
-                          Tap to select PDF file
+                          Toca para seleccionar archivo PDF
                         </Text>
                       </View>
                     )}
                   </TouchableOpacity>
+                </View>
+
+                {/* PDF Requirements Info */}
+                {newSchedule.pdfFile && (
+                  <View className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-3">
+                    <Text className="text-amber-800 text-xs font-medium mb-1">ℹ️ Sobre tu PDF:</Text>
+                    <Text className="text-amber-700 text-xs mb-1">
+                      • Si es un PDF de texto: Se extraerán datos reales
+                    </Text>
+                    <Text className="text-amber-700 text-xs">
+                      • Si es escaneado/imagen: Se mostrarán datos simulados
+                    </Text>
+                  </View>
+                )}
+
+                {/* Auto-generated info display */}
+                <View className="bg-blue-50 p-3 rounded-lg mt-3">
+                  <Text className="text-sm font-medium text-blue-700 mb-2">Información automática:</Text>
+                  <View className="space-y-1">
+                    <Text className="text-xs text-blue-600">
+                      📅 Fecha: {new Date().toLocaleDateString('es-ES')}
+                    </Text>
+                    <Text className="text-xs text-blue-600">
+                      ⏰ Hora: {new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <Text className="text-xs text-blue-600">
+                      🏫 Institución: {userProfile?.institucion || 'Universidad'}
+                    </Text>
+                  </View>
+                  <Text className="text-xs text-blue-500 mt-2">
+                    ℹ️ Esta información se asigna automáticamente
+                  </Text>
                 </View>
               </View>
             </ScrollView>
@@ -373,13 +466,13 @@ export default function ScheduleScreen({ navigation }) {
                 className="flex-1 bg-gray-200 py-3 rounded-lg"
                 onPress={() => setIsModalVisible(false)}
               >
-                <Text className="text-center text-gray-700 font-semibold">Cancel</Text>
+                <Text className="text-center text-gray-700 font-semibold">Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 className="flex-1 bg-purple-500 py-3 rounded-lg"
                 onPress={saveSchedule}
               >
-                <Text className="text-center text-white font-semibold">Save Schedule</Text>
+                <Text className="text-center text-white font-semibold">Guardar Horario</Text>
               </TouchableOpacity>
             </View>
           </View>

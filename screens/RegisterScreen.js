@@ -40,7 +40,7 @@ export default function RegisterScreen({ navigation }) {
           text: 'OK', 
           onPress: () => navigation.reset({
             index: 0,
-            routes: [{ name: 'Onboarding' }],
+            routes: [{ name: 'UserProfile' }],
           })
         }
       ]);

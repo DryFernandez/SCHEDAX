@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, TextInput, Modal, Platform } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserStorage } from '../services/UserStorage';
+import { androidStyles, colors, getGradientBackground } from '../utils/androidStyles';
+
 
 const USER_PROFILE_KEY = '@schedax_user_profile';
 
@@ -43,18 +45,31 @@ export default function OnboardingScreen({ navigation }) {
     }
   };
 
-  const processFileAndContinue = () => {
+  const processFileAndContinue = async () => {
     if (!scheduleFile) {
       Alert.alert('Error', 'Please upload your schedule file first');
       return;
     }
     
-    // Simulate extracting information from PDF
-    Alert.alert(
-      'File Processed!', 
-      'Your schedule has been analyzed. Now please complete your profile information.',
-      [{ text: 'Continue', onPress: () => setStep(2) }]
-    );
+    try {
+      // Schedule file uploaded - continue with manual setup
+      Alert.alert(
+        'Archivo Cargado',
+        `Horario PDF: ${scheduleFile.name}\n\nAhora puedes completar tu perfil manualmente.`,
+        [{ text: 'Continuar' }]
+      );
+      
+      // Continue to profile setup step
+      setStep(2);
+      
+    } catch (error) {
+      console.error('Error handling file:', error);
+      Alert.alert(
+        'Error',
+        'Hubo un problema al procesar el archivo. Puedes continuar configurando tu perfil manualmente.',
+        [{ text: 'Continuar', onPress: () => setStep(2) }]
+      );
+    }
   };
 
   const validateProfileForm = () => {
@@ -76,6 +91,10 @@ export default function OnboardingScreen({ navigation }) {
     
     try {
       const currentUser = await UserStorage.getCurrentUser();
+      
+      if (!currentUser || !currentUser.id) {
+        throw new Error('User not found. Please log in again.');
+      }
       
       const profileData = {
         userId: currentUser.id,
@@ -108,7 +127,7 @@ export default function OnboardingScreen({ navigation }) {
   if (step === 1) {
     // Step 1: Upload Schedule File
     return (
-      <View className="flex-1 bg-gradient-to-br from-blue-500 to-purple-600">
+      <View className="flex-1" style={[{ backgroundColor: colors.primary[500] }, Platform.OS === 'android' && getGradientBackground('blue-purple')]}>
         {/* Header */}
         <View className="pt-12 pb-6 px-6">
           <View className="items-center mb-6">
@@ -161,7 +180,8 @@ export default function OnboardingScreen({ navigation }) {
 
             {scheduleFile && (
               <TouchableOpacity 
-                className="bg-gradient-to-r from-blue-500 to-purple-600 py-4 px-6 rounded-xl items-center"
+                className="py-4 px-6 rounded-xl items-center"
+                style={[{ backgroundColor: colors.primary[500] }, Platform.OS === 'android' && getGradientBackground('blue-purple')]}
                 onPress={processFileAndContinue}
               >
                 <Text className="text-white text-lg font-semibold">
@@ -177,7 +197,7 @@ export default function OnboardingScreen({ navigation }) {
 
   // Step 2: Complete Profile Information
   return (
-    <View className="flex-1 bg-gradient-to-br from-green-500 to-blue-600">
+    <View className="flex-1" style={[{ backgroundColor: colors.success }, Platform.OS === 'android' && getGradientBackground('green-blue')]}>
       {/* Header */}
       <View className="pt-12 pb-6 px-6">
         <View className="items-center mb-6">
@@ -324,7 +344,8 @@ export default function OnboardingScreen({ navigation }) {
             </TouchableOpacity>
             
             <TouchableOpacity 
-              className={`flex-1 py-4 px-6 rounded-xl items-center ${isLoading ? 'bg-gray-400' : 'bg-gradient-to-r from-green-500 to-blue-600'}`}
+              className="flex-1 py-4 px-6 rounded-xl items-center"
+              style={isLoading ? { backgroundColor: '#9ca3af' } : [{ backgroundColor: colors.success }, Platform.OS === 'android' && getGradientBackground('green-blue')]}
               onPress={saveProfile}
               disabled={isLoading}
             >

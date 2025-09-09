@@ -10,18 +10,30 @@ import {
   Platform 
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { androidStyles, colors, getGradientBackground } from '../utils/androidStyles';
 
 export default function UserProfileScreen({ navigation }) {
   const [isLoading, setIsLoading] = useState(false);
   const [existingProfile, setExistingProfile] = useState(null);
   const [profileData, setProfileData] = useState({
-    // Personal Details
+    // Basic Personal Information
+    nombre: '',
+    apellidos: '',
+    telefono: '',
+    edad: '',
+    
+    // Extended Personal Details
     fechaNacimiento: '',
     genero: '',
     estadoCivil: '',
     nacionalidad: '',
     ciudadResidencia: '',
     codigoPostal: '',
+    
+    // Educational Information (Basic)
+    matricula: '',
+    institucion: '',
+    carrera: '',
     
     // Emergency Contact
     contactoEmergencia: {
@@ -60,7 +72,24 @@ export default function UserProfileScreen({ navigation }) {
 
   useEffect(() => {
     loadExistingProfile();
+    loadCurrentUser();
   }, []);
+
+  const loadCurrentUser = async () => {
+    try {
+      const { UserStorage } = require('../services/UserStorage');
+      const currentUser = await UserStorage.getCurrentUser();
+      if (currentUser) {
+        // Pre-populate email-related data
+        setProfileData(prev => ({
+          ...prev,
+          email: currentUser.email
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading current user:', error);
+    }
+  };
 
   const loadExistingProfile = async () => {
     try {
@@ -69,13 +98,10 @@ export default function UserProfileScreen({ navigation }) {
         const profile = JSON.parse(profileString);
         setExistingProfile(profile);
         
-        // Extract academic information from the uploaded file data
-        const extractedAcademicInfo = extractAcademicInfoFromFile(profile);
-        
-        // Pre-populate profile data with extracted information
+        // Pre-populate profile data with existing information
         setProfileData(prev => ({
           ...prev,
-          ...extractedAcademicInfo
+          ...profile
         }));
       }
     } catch (error) {
@@ -161,6 +187,8 @@ export default function UserProfileScreen({ navigation }) {
 
   const validateRequiredFields = () => {
     const requiredFields = [
+      'nombre', 'apellidos', 'telefono', 'edad',
+      'matricula', 'institucion', 'carrera',
       'fechaNacimiento', 'genero', 'ciudadResidencia',
       'nivelEducativo', 'añoIngreso'
     ];
@@ -245,16 +273,16 @@ export default function UserProfileScreen({ navigation }) {
       className="flex-1" 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View className="flex-1 bg-gradient-to-br from-purple-500 to-pink-600">
+      <View className="flex-1" style={[{ backgroundColor: colors.secondary[500] }, Platform.OS === 'android' && getGradientBackground('purple-pink')]}>
         {/* Header */}
         <View className="pt-12 pb-6 px-6">
           <View className="items-center mb-4">
             <View className="bg-white w-20 h-20 rounded-full items-center justify-center mb-4">
               <Text className="text-purple-500 text-3xl">📋</Text>
             </View>
-            <Text className="text-white text-2xl font-bold mb-2">Información Adicional</Text>
+            <Text className="text-white text-2xl font-bold mb-2">Configuración de Perfil</Text>
             <Text className="text-purple-100 text-center text-base mb-3">
-              Completa tu perfil para una mejor experiencia
+              Completa tu información personal y académica
             </Text>
             {existingProfile?.scheduleFile && (
               <View className="bg-white/20 rounded-lg p-3 mt-2">
@@ -270,9 +298,107 @@ export default function UserProfileScreen({ navigation }) {
         <ScrollView className="flex-1 bg-white rounded-t-3xl px-6 pt-6">
           <View className="space-y-6 pb-8">
             
-            {/* Personal Details Section */}
+            {/* Email Display */}
+            {profileData.email && (
+              <View className="bg-blue-50 p-4 rounded-lg mb-4">
+                <Text className="text-sm font-medium text-blue-700 mb-1">Email registrado:</Text>
+                <Text className="text-blue-800 font-semibold">{profileData.email}</Text>
+                <Text className="text-xs text-blue-600 mt-1">
+                  Este email se utilizó durante el registro
+                </Text>
+              </View>
+            )}
+
+            {/* Basic Personal Information Section */}
             <View>
-              <Text className="text-lg font-bold text-gray-800 mb-4">Información Personal</Text>
+              <Text className="text-lg font-bold text-gray-800 mb-4">Información Personal Básica</Text>
+              
+              <View className="space-y-3">
+                <View>
+                  <Text className="text-sm font-medium text-gray-700 mb-1">Nombre(s) *</Text>
+                  <TextInput
+                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    placeholder="Tu nombre"
+                    value={profileData.nombre}
+                    onChangeText={(text) => handleInputChange('nombre', text)}
+                  />
+                </View>
+                
+                <View>
+                  <Text className="text-sm font-medium text-gray-700 mb-1">Apellidos *</Text>
+                  <TextInput
+                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    placeholder="Tus apellidos"
+                    value={profileData.apellidos}
+                    onChangeText={(text) => handleInputChange('apellidos', text)}
+                  />
+                </View>
+                
+                <View className="flex-row space-x-3">
+                  <View className="flex-1">
+                    <Text className="text-sm font-medium text-gray-700 mb-1">Teléfono *</Text>
+                    <TextInput
+                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      placeholder="Número de teléfono"
+                      keyboardType="phone-pad"
+                      value={profileData.telefono}
+                      onChangeText={(text) => handleInputChange('telefono', text)}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Text className="text-sm font-medium text-gray-700 mb-1">Edad *</Text>
+                    <TextInput
+                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      placeholder="Tu edad"
+                      keyboardType="numeric"
+                      value={profileData.edad}
+                      onChangeText={(text) => handleInputChange('edad', text)}
+                    />
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            {/* Basic Educational Information Section */}
+            <View>
+              <Text className="text-lg font-bold text-gray-800 mb-4">Información Educativa Básica</Text>
+              
+              <View className="space-y-3">
+                <View>
+                  <Text className="text-sm font-medium text-gray-700 mb-1">Matrícula *</Text>
+                  <TextInput
+                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    placeholder="Tu número de matrícula"
+                    value={profileData.matricula}
+                    onChangeText={(text) => handleInputChange('matricula', text)}
+                  />
+                </View>
+                
+                <View>
+                  <Text className="text-sm font-medium text-gray-700 mb-1">Institución *</Text>
+                  <TextInput
+                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    placeholder="Nombre de tu universidad/institución"
+                    value={profileData.institucion}
+                    onChangeText={(text) => handleInputChange('institucion', text)}
+                  />
+                </View>
+                
+                <View>
+                  <Text className="text-sm font-medium text-gray-700 mb-1">Carrera *</Text>
+                  <TextInput
+                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    placeholder="Tu carrera o programa académico"
+                    value={profileData.carrera}
+                    onChangeText={(text) => handleInputChange('carrera', text)}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Extended Personal Details Section */}
+            <View>
+              <Text className="text-lg font-bold text-gray-800 mb-4">Información Personal Adicional</Text>
               
               <View className="space-y-3">
                 <View>
@@ -620,7 +746,8 @@ export default function UserProfileScreen({ navigation }) {
             {/* Action Buttons */}
             <View className="space-y-3 pt-4">
               <TouchableOpacity 
-                className={`py-4 px-6 rounded-xl items-center ${isLoading ? 'bg-gray-400' : 'bg-gradient-to-r from-purple-500 to-pink-600'}`}
+                className="py-4 px-6 rounded-xl items-center"
+                style={isLoading ? { backgroundColor: '#9ca3af' } : [{ backgroundColor: colors.secondary[500] }, Platform.OS === 'android' && getGradientBackground('purple-pink')]}
                 onPress={saveExtendedProfile}
                 disabled={isLoading}
               >
