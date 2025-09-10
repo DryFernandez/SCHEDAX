@@ -13,6 +13,8 @@ import RegisterScreen from './screens/RegisterScreen';
 import HomeScreen from './screens/HomeScreen';
 import ScheduleScreen from './screens/ScheduleScreen';
 import ScheduleTableScreen from './screens/ScheduleTableScreen';
+import CalendarScreen from './screens/CalendarScreen';
+import AnalyticsScreen from './screens/AnalyticsScreen';
 import UserProfileScreen from './screens/UserProfileScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import { UserStorage } from './services/UserStorage';
@@ -40,6 +42,8 @@ function DrawerNavigator() {
       <Drawer.Screen name="Home" component={HomeScreen} />
       <Drawer.Screen name="Schedule" component={ScheduleScreen} />
       <Drawer.Screen name="ScheduleTable" component={ScheduleTableScreen} />
+      <Drawer.Screen name="Calendar" component={CalendarScreen} />
+      <Drawer.Screen name="Analytics" component={AnalyticsScreen} />
       <Drawer.Screen name="Profile" component={UserProfileScreen} />
       <Drawer.Screen name="Settings" component={SettingsScreen} />
     </Drawer.Navigator>

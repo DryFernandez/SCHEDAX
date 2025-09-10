@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { UserStorage } from '../services/UserStorage';
+import { useTheme } from '../contexts/ThemeContext';
 
 
 const SCHEDULES_STORAGE_KEY = '@schedax_schedules';
@@ -61,12 +62,45 @@ const sampleScheduleData = {
 };
 
 export default function ScheduleTableScreen({ navigation }) {
+  const { theme } = useTheme();
   const [schedules, setSchedules] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [selectedSchedule, setSelectedSchedule] = useState(null);
   const [scheduleData, setScheduleData] = useState(null);
   const [extractedSchedule, setExtractedSchedule] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+
+  const createThemedStyles = () => ({
+    container: {
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      backgroundColor: theme.colors.primary,
+    },
+    headerTitle: {
+      color: theme.colors.textOnPrimary,
+    },
+    headerSubtitle: {
+      color: theme.colors.textOnPrimary,
+      opacity: 0.8,
+    },
+    menuIcon: {
+      backgroundColor: theme.colors.textOnPrimary,
+    },
+    card: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+    },
+    textPrimary: {
+      color: theme.colors.text,
+    },
+    textSecondary: {
+      color: theme.colors.textSecondary,
+    },
+    textTertiary: {
+      color: theme.colors.textTertiary,
+    }
+  });
 
   useEffect(() => {
     loadUserData();
@@ -169,12 +203,19 @@ export default function ScheduleTableScreen({ navigation }) {
       const user = await UserStorage.getCurrentUser();
       if (user) {
         const userSchedules = allSchedules.filter(schedule => 
-          schedule.userId === user.id && schedule.pdfFile
+          schedule.userId === user.id && schedule.materias && schedule.materias.length > 0
         );
         
-        // Sort schedules by creation date (most recent first) and prioritize those with extracted data
+        // Sort schedules by priority: materias > extracted data > creation date
         userSchedules.sort((a, b) => {
-          // First, prioritize schedules with extracted data
+          // First, prioritize schedules with manually added materias
+          const aHasMaterias = a.materias && a.materias.length > 0;
+          const bHasMaterias = b.materias && b.materias.length > 0;
+          
+          if (aHasMaterias && !bHasMaterias) return -1;
+          if (!aHasMaterias && bHasMaterias) return 1;
+          
+          // Second, prioritize schedules with extracted data
           const aHasData = a.extractedData && a.extractedData.courses.length > 0;
           const bHasData = b.extractedData && b.extractedData.courses.length > 0;
           
@@ -195,6 +236,19 @@ export default function ScheduleTableScreen({ navigation }) {
 
   const processSchedulePDF = (schedule) => {
     setSelectedSchedule(schedule);
+    
+    // First check if schedule has manually added materias
+    if (schedule.materias && schedule.materias.length > 0) {
+      const materiasData = convertMateriasToTableFormat(schedule);
+      setScheduleData(materiasData);
+      
+      Alert.alert(
+        '✅ Materias Cargadas',
+        `Mostrando ${schedule.materias.length} materias agregadas manualmente al horario "${schedule.title}".\n\n📚 Total créditos: ${schedule.materias.reduce((sum, m) => sum + m.creditos, 0)}`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     
     // Use real extracted data if available
     if (schedule.extractedData) {
@@ -235,6 +289,48 @@ export default function ScheduleTableScreen({ navigation }) {
         [{ text: 'OK' }]
       );
     }
+  };
+
+  // Convert manually added materias to table format
+  const convertMateriasToTableFormat = (schedule) => {
+    if (!schedule.materias || schedule.materias.length === 0) {
+      return null;
+    }
+
+    const subjects = schedule.materias.map((materia, index) => ({
+      id: materia.id || (index + 1).toString(),
+      asignatura: materia.nombre,
+      carrera: userProfile?.carrera || 'No especificada',
+      creditos: materia.creditos || 3,
+      profesor: materia.profesor,
+      horarios: materia.horarios || {
+        lunes: [],
+        martes: [],
+        miercoles: [],
+        jueves: [],
+        viernes: [],
+        sabado: [],
+        domingo: []
+      }
+    }));
+
+    return {
+      subjects,
+      studentInfo: {
+        name: userProfile ? `${userProfile.nombre} ${userProfile.apellido}` : 'Usuario',
+        matricula: userProfile?.matricula || 'N/A',
+        carrera: userProfile?.carrera || 'No especificada',
+        periodo: userProfile?.periodo || 'N/A',
+        institucion: userProfile?.institucion || schedule.university || 'Universidad'
+      },
+      materiasInfo: {
+        isManuallyAdded: true,
+        totalMaterias: schedule.materias.length,
+        totalCreditos: schedule.materias.reduce((sum, m) => sum + m.creditos, 0),
+        addedAt: schedule.createdAt,
+        sourceSchedule: schedule.title
+      }
+    };
   };
 
   // Convert extracted PDF data to table format
@@ -305,31 +401,32 @@ export default function ScheduleTableScreen({ navigation }) {
   const renderScheduleTable = () => {
     if (!scheduleData) return null;
 
+    const styles = createThemedStyles();
     const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
     const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
     return (
-      <View className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 mb-6">
+      <View style={[styles.card]} className="rounded-xl p-4 shadow-sm border mb-6">
         <View className="mb-4">
-          <Text className="text-xl font-bold text-gray-800 mb-2">
+          <Text style={[styles.textPrimary]} className="text-xl font-bold mb-2">
             Horario Académico - {selectedSchedule.university}
           </Text>
-          <Text className="text-sm text-gray-600 mb-1">
+          <Text style={[styles.textSecondary]} className="text-sm mb-1">
             Carrera: {scheduleData.subjects[0]?.carrera}
           </Text>
-          <Text className="text-sm text-gray-600">
+          <Text style={[styles.textSecondary]} className="text-sm">
             Total Créditos: {scheduleData.subjects.reduce((sum, subject) => sum + subject.creditos, 0)}
           </Text>
         </View>
 
         {/* Subjects Summary */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Asignaturas</Text>
+          <Text style={[styles.textPrimary]} className="text-lg font-semibold mb-3">Asignaturas</Text>
           {scheduleData.subjects.map(subject => (
-            <View key={subject.id} className="flex-row justify-between items-center py-2 border-b border-gray-100">
+            <View key={subject.id} style={{borderBottomColor: theme.colors.border}} className="flex-row justify-between items-center py-2 border-b">
               <View className="flex-1">
-                <Text className="font-medium text-gray-800">{subject.asignatura}</Text>
-                <Text className="text-sm text-gray-600">{subject.profesor}</Text>
+                <Text style={[styles.textPrimary]} className="font-medium">{subject.asignatura}</Text>
+                <Text style={[styles.textSecondary]} className="text-sm">{subject.profesor}</Text>
               </View>
               <Text className="text-sm font-medium text-blue-600">{subject.creditos} créditos</Text>
             </View>
@@ -338,7 +435,7 @@ export default function ScheduleTableScreen({ navigation }) {
 
         {/* Weekly Schedule */}
         <View>
-          <Text className="text-lg font-semibold text-gray-800 mb-3">Horario Semanal</Text>
+          <Text style={[styles.textPrimary]} className="text-lg font-semibold mb-3">Horario Semanal</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View className="flex-row">
               {days.map((day, index) => {
@@ -350,24 +447,24 @@ export default function ScheduleTableScreen({ navigation }) {
                         {dayNames[index]}
                       </Text>
                     </View>
-                    <View className="bg-gray-50 min-h-32 rounded-b-lg p-2">
+                    <View style={{backgroundColor: theme.colors.surface}} className="min-h-32 rounded-b-lg p-2">
                       {daySchedule.length > 0 ? (
                         daySchedule.map((clase, idx) => (
-                          <View key={idx} className="bg-white rounded p-2 mb-2 border-l-2 border-blue-400">
-                            <Text className="text-xs font-semibold text-gray-800 mb-1">
+                          <View key={idx} style={[styles.card]} className="rounded p-2 mb-2 border-l-2 border-blue-400">
+                            <Text style={[styles.textPrimary]} className="text-xs font-semibold mb-1">
                               {clase.hora}
                             </Text>
                             <Text className="text-xs text-blue-600 font-medium mb-1">
                               {clase.asignatura}
                             </Text>
-                            <Text className="text-xs text-gray-600">
+                            <Text style={[styles.textSecondary]} className="text-xs">
                               {clase.aula}
                             </Text>
                           </View>
                         ))
                       ) : (
                         <View className="flex-1 justify-center items-center">
-                          <Text className="text-xs text-gray-400">Sin clases</Text>
+                          <Text style={[styles.textTertiary]} className="text-xs">Sin clases</Text>
                         </View>
                       )}
                     </View>
@@ -381,24 +478,26 @@ export default function ScheduleTableScreen({ navigation }) {
     );
   };
 
+  const styles = createThemedStyles();
+  
   return (
-    <View className="flex-1 bg-gray-50">
+    <View style={[styles.container]} className="flex-1">
       {/* Header */}
-      <View className="bg-green-500 pt-12 pb-6 px-5">
+      <View style={[styles.header]} className="pt-12 pb-6 px-5">
         <View className="flex-row justify-between items-center">
           <TouchableOpacity 
             className="mr-4"
             onPress={() => navigation.openDrawer()}
           >
             <View className="w-8 h-8 justify-center items-center">
-              <View className="w-6 h-0.5 bg-white mb-1"></View>
-              <View className="w-6 h-0.5 bg-white mb-1"></View>
-              <View className="w-6 h-0.5 bg-white"></View>
+              <View style={[styles.menuIcon]} className="w-6 h-0.5 mb-1"></View>
+              <View style={[styles.menuIcon]} className="w-6 h-0.5 mb-1"></View>
+              <View style={[styles.menuIcon]} className="w-6 h-0.5"></View>
             </View>
           </TouchableOpacity>
           <View className="flex-1">
-            <Text className="text-white text-2xl font-bold">Horarios Académicos</Text>
-            <Text className="text-green-100 text-sm mt-1">Visualiza tus horarios de clase</Text>
+            <Text style={[styles.headerTitle]} className="text-2xl font-bold">Horarios Académicos</Text>
+            <Text style={[styles.headerSubtitle]} className="text-sm mt-1">Visualiza tus horarios de clase</Text>
           </View>
           <TouchableOpacity 
             className="bg-green-600 px-4 py-2 rounded-lg"
@@ -413,6 +512,24 @@ export default function ScheduleTableScreen({ navigation }) {
       </View>
 
       <ScrollView className="flex-1 p-5">
+        {/* Data Source Indicator */}
+        {scheduleData && scheduleData.materiasInfo && scheduleData.materiasInfo.isManuallyAdded && (
+          <View className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-4">
+            <View className="flex-row items-center mb-2">
+              <Text className="text-2xl mr-2">✅</Text>
+              <Text className="font-bold text-lg flex-1 text-green-800">
+                MATERIAS AGREGADAS MANUALMENTE
+              </Text>
+            </View>
+            <Text className="text-base mb-2 text-green-700">
+              Las materias mostradas fueron agregadas manualmente al crear el horario "{scheduleData.materiasInfo.sourceSchedule}".
+            </Text>
+            <Text className="text-sm text-green-600">
+              📚 {scheduleData.materiasInfo.totalMaterias} materias • 🎓 {scheduleData.materiasInfo.totalCreditos} créditos • 📅 Creado: {new Date(scheduleData.materiasInfo.addedAt).toLocaleDateString('es-ES')}
+            </Text>
+          </View>
+        )}
+
         {/* Data Authenticity Warning */}
         {scheduleData && scheduleData.extractionInfo && scheduleData.extractionInfo.method !== 'text-extraction' && (
           <View className={`border-2 rounded-lg p-4 mb-4 ${
@@ -438,7 +555,7 @@ export default function ScheduleTableScreen({ navigation }) {
                 : 'text-red-700'
             }`}>
               {scheduleData.extractionInfo.method === 'encoded-pdf-fallback' 
-                ? 'El PDF contiene texto pero está codificado de manera compleja. Los datos mostrados son SIMULADOS basados en el análisis del nombre del archivo.' 
+                ? 'El PDF contiene texto pero está está codificado de manera compleja. Los datos mostrados son SIMULADOS basados en el análisis del nombre del archivo.' 
                 : 'El PDF cargado no se pudo procesar correctamente. Los datos mostrados son SIMULADOS y no reflejan el contenido real del documento.'}
             </Text>
             <Text className={`text-sm ${
@@ -454,7 +571,7 @@ export default function ScheduleTableScreen({ navigation }) {
         {/* Extracted Schedule Section */}
         {scheduleData && scheduleData.studentInfo && (
           <View className="mb-6">
-            <Text className="text-xl font-bold text-gray-800 mb-4">📄 Tu Horario Académico</Text>
+            <Text style={[styles.textPrimary]} className="text-xl font-bold mb-4">📄 Tu Horario Académico</Text>
             
             {/* Extraction Info Card */}
             {scheduleData.extractionInfo && (
@@ -504,25 +621,25 @@ export default function ScheduleTableScreen({ navigation }) {
             )}
             
             {/* Student Info Card */}
-            <View className="bg-white rounded-lg p-4 mb-4 shadow-sm border border-gray-200">
+            <View style={[styles.card]} className="rounded-lg p-4 mb-4 shadow-sm border">
               <View className="flex-row items-center mb-2">
-                <Text className="text-lg font-bold text-gray-800 flex-1">
+                <Text style={[styles.textPrimary]} className="text-lg font-bold flex-1">
                   {scheduleData.studentInfo.name}
                 </Text>
                 <View className="bg-green-100 px-2 py-1 rounded-full">
                   <Text className="text-green-600 text-xs font-medium">Extraído</Text>
                 </View>
               </View>
-              <Text className="text-gray-600 text-sm">🆔 {scheduleData.studentInfo.matricula}</Text>
-              <Text className="text-gray-600 text-sm">🎓 {scheduleData.studentInfo.carrera}</Text>
-              <Text className="text-gray-600 text-sm">📅 {scheduleData.studentInfo.periodo}</Text>
-              <Text className="text-gray-600 text-sm">🏫 {scheduleData.studentInfo.institucion}</Text>
+              <Text style={[styles.textSecondary]} className="text-sm">🆔 {scheduleData.studentInfo.matricula}</Text>
+              <Text style={[styles.textSecondary]} className="text-sm">🎓 {scheduleData.studentInfo.carrera}</Text>
+              <Text style={[styles.textSecondary]} className="text-sm">📅 {scheduleData.studentInfo.periodo}</Text>
+              <Text style={[styles.textSecondary]} className="text-sm">🏫 {scheduleData.studentInfo.institucion}</Text>
             </View>
 
             {/* Schedule Statistics */}
-            <View className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
+            <View style={[styles.card]} className="rounded-lg shadow-sm border mb-4">
               <View className="p-4">
-                <Text className="text-lg font-bold text-gray-800 mb-3">Resumen del Horario</Text>
+                <Text style={[styles.textPrimary]} className="text-lg font-bold mb-3">Resumen del Horario</Text>
                 <View className="flex-row flex-wrap">
                   <View className="w-1/2 mb-3">
                     <View className="bg-blue-50 p-3 rounded-lg">
@@ -571,11 +688,18 @@ export default function ScheduleTableScreen({ navigation }) {
             </View>
 
             {/* Schedule Table */}
-            <View className="bg-white rounded-lg shadow-sm border border-gray-200">
-              <View className="p-4 border-b border-gray-200">
+            <View style={[styles.card]} className="rounded-lg shadow-sm border">
+              <View style={{borderBottomColor: theme.colors.border}} className="p-4 border-b">
                 <View className="flex-row items-center justify-between mb-2">
-                  <Text className="text-lg font-bold text-gray-800">Tabla de Horarios</Text>
-                  {scheduleData.extractionInfo && (
+                  <Text style={[styles.textPrimary]} className="text-lg font-bold">Tabla de Horarios</Text>
+                  {scheduleData.materiasInfo && scheduleData.materiasInfo.isManuallyAdded && (
+                    <View className="px-2 py-1 rounded-full bg-green-100">
+                      <Text className="text-xs font-medium text-green-600">
+                        Manual
+                      </Text>
+                    </View>
+                  )}
+                  {scheduleData.extractionInfo && !scheduleData.materiasInfo?.isManuallyAdded && (
                     <View className={`px-2 py-1 rounded-full ${
                       scheduleData.extractionInfo.method === 'text-extraction' 
                         ? 'bg-green-100' : 'bg-yellow-100'
@@ -589,12 +713,12 @@ export default function ScheduleTableScreen({ navigation }) {
                     </View>
                   )}
                 </View>
-                <Text className="text-gray-600 text-sm">
+                <Text style={[styles.textSecondary]} className="text-sm">
                   {scheduleData.subjects.length} materias • {scheduleData.subjects.reduce((total, subject) => total + (subject.creditos || 0), 0)} créditos totales
                 </Text>
-                {selectedSchedule && (
-                  <Text className="text-gray-500 text-xs mt-1">
-                    Fuente: {selectedSchedule.pdfFile.name}
+                {selectedSchedule && selectedSchedule.materias && selectedSchedule.materias.length > 0 && (
+                  <Text style={[styles.textTertiary]} className="text-xs mt-1">
+                    Fuente: Horario "{selectedSchedule.title}" con {selectedSchedule.materias.length} materias
                   </Text>
                 )}
               </View>
@@ -602,49 +726,49 @@ export default function ScheduleTableScreen({ navigation }) {
               <ScrollView horizontal showsHorizontalScrollIndicator={true}>
                 <View className="min-w-full">
                   {/* Table Header */}
-                  <View className="flex-row bg-gray-50 border-b border-gray-200">
-                    <View className="w-32 p-3 border-r border-gray-200">
-                      <Text className="font-bold text-gray-800 text-xs">Asignatura</Text>
+                  <View style={{backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border}} className="flex-row border-b">
+                    <View style={{borderRightColor: theme.colors.border}} className="w-32 p-3 border-r">
+                      <Text style={[styles.textPrimary]} className="font-bold text-xs">Asignatura</Text>
                     </View>
-                    <View className="w-24 p-3 border-r border-gray-200">
-                      <Text className="font-bold text-gray-800 text-xs">Créditos</Text>
+                    <View style={{borderRightColor: theme.colors.border}} className="w-24 p-3 border-r">
+                      <Text style={[styles.textPrimary]} className="font-bold text-xs">Créditos</Text>
                     </View>
-                    <View className="w-32 p-3 border-r border-gray-200">
-                      <Text className="font-bold text-gray-800 text-xs">Profesor</Text>
+                    <View style={{borderRightColor: theme.colors.border}} className="w-32 p-3 border-r">
+                      <Text style={[styles.textPrimary]} className="font-bold text-xs">Profesor</Text>
                     </View>
                     {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'].map(day => (
-                      <View key={day} className="w-24 p-3 border-r border-gray-200">
-                        <Text className="font-bold text-gray-800 text-xs text-center">{day}</Text>
+                      <View key={day} style={{borderRightColor: theme.colors.border}} className="w-24 p-3 border-r">
+                        <Text style={[styles.textPrimary]} className="font-bold text-xs text-center">{day}</Text>
                       </View>
                     ))}
                   </View>
 
                   {/* Table Rows */}
                   {scheduleData.subjects.map((subject) => (
-                    <View key={subject.id} className="flex-row border-b border-gray-100">
-                      <View className="w-32 p-3 border-r border-gray-200">
-                        <Text className="text-gray-800 text-xs" numberOfLines={2}>
+                    <View key={subject.id} style={{borderBottomColor: theme.colors.border}} className="flex-row border-b">
+                      <View style={{borderRightColor: theme.colors.border}} className="w-32 p-3 border-r">
+                        <Text style={[styles.textPrimary]} className="text-xs" numberOfLines={2}>
                           {subject.asignatura}
                         </Text>
                       </View>
-                      <View className="w-24 p-3 border-r border-gray-200">
-                        <Text className="text-gray-800 text-xs text-center">
+                      <View style={{borderRightColor: theme.colors.border}} className="w-24 p-3 border-r">
+                        <Text style={[styles.textPrimary]} className="text-xs text-center">
                           {subject.creditos}
                         </Text>
                       </View>
-                      <View className="w-32 p-3 border-r border-gray-200">
-                        <Text className="text-gray-800 text-xs" numberOfLines={2}>
+                      <View style={{borderRightColor: theme.colors.border}} className="w-32 p-3 border-r">
+                        <Text style={[styles.textPrimary]} className="text-xs" numberOfLines={2}>
                           {subject.profesor}
                         </Text>
                       </View>
                       {['lunes', 'martes', 'miércoles', 'jueves', 'viernes'].map(day => (
-                        <View key={day} className="w-24 p-3 border-r border-gray-200">
+                        <View key={day} style={{borderRightColor: theme.colors.border}} className="w-24 p-3 border-r">
                           {subject.horarios[day]?.map((horario, index) => (
                             <View key={index} className="mb-1">
                               <Text className="text-blue-600 text-xs font-medium">
                                 {horario.hora}
                               </Text>
-                              <Text className="text-gray-500 text-xs">
+                              <Text style={[styles.textTertiary]} className="text-xs">
                                 {horario.aula}
                               </Text>
                             </View>
@@ -659,45 +783,53 @@ export default function ScheduleTableScreen({ navigation }) {
           </View>
         )}
 
-        {/* PDF Files List */}
+        {/* Schedules with Materias List */}
         <View className="mb-6">
-          <Text className="text-xl font-bold text-gray-800 mb-4">Archivos de Horario</Text>
+          <Text style={[styles.textPrimary]} className="text-xl font-bold mb-4">Horarios con Materias</Text>
           {schedules.length === 0 ? (
-            <View className="bg-white rounded-xl p-6 items-center shadow-sm border border-gray-200">
+            <View style={[styles.card]} className="rounded-xl p-6 items-center shadow-sm border">
               <View className="bg-green-100 w-16 h-16 rounded-full items-center justify-center mb-3">
                 <Text className="text-green-600 text-2xl">📊</Text>
               </View>
-              <Text className="text-gray-500 text-center mb-2">
-                No hay horarios con archivos PDF
+              <Text style={[styles.textTertiary]} className="text-center mb-2">
+                No hay horarios con materias
               </Text>
-              <Text className="text-gray-400 text-center text-sm mb-4">
-                Sube un PDF de tu horario académico para ver información extraída automáticamente
+              <Text style={[styles.textTertiary]} className="text-center text-sm mb-4">
+                Crea un horario agregando materias manualmente para verlas organizadas en tabla
               </Text>
               <TouchableOpacity 
                 className="bg-green-500 px-4 py-2 rounded-lg"
                 onPress={() => navigation.navigate('Schedule')}
               >
-                <Text className="text-white font-medium">Crear Horario con PDF</Text>
+                <Text className="text-white font-medium">Crear Horario con Materias</Text>
               </TouchableOpacity>
             </View>
           ) : (
             schedules.map(schedule => {
               const hasExtractedData = schedule.extractedData && schedule.extractedData.courses.length > 0;
+              const hasMaterias = schedule.materias && schedule.materias.length > 0;
               const isSelected = selectedSchedule && selectedSchedule.id === schedule.id;
               
               return (
                 <TouchableOpacity
                   key={schedule.id}
-                  className={`bg-white rounded-xl p-4 mb-3 shadow-sm border-2 ${
-                    isSelected ? 'border-green-500' : 'border-gray-200'
-                  }`}
+                  style={[
+                    styles.card,
+                    { borderColor: isSelected ? '#10B981' : theme.colors.border, borderWidth: 2 }
+                  ]}
+                  className="rounded-xl p-4 mb-3 shadow-sm"
                   onPress={() => processSchedulePDF(schedule)}
                 >
                   <View className="flex-row items-center justify-between">
                     <View className="flex-1">
                       <View className="flex-row items-center mb-1">
-                        <Text className="text-lg font-semibold text-gray-800 flex-1">{schedule.title}</Text>
-                        {hasExtractedData && (
+                        <Text style={[styles.textPrimary]} className="text-lg font-semibold flex-1">{schedule.title}</Text>
+                        {hasMaterias && (
+                          <View className="bg-green-100 px-2 py-1 rounded-full mr-2">
+                            <Text className="text-green-600 text-xs font-medium">Materias Manual</Text>
+                          </View>
+                        )}
+                        {hasExtractedData && !hasMaterias && (
                           <View className="bg-blue-100 px-2 py-1 rounded-full mr-2">
                             <Text className="text-blue-600 text-xs font-medium">Datos Extraídos</Text>
                           </View>
@@ -705,17 +837,16 @@ export default function ScheduleTableScreen({ navigation }) {
                       </View>
                       
                       <Text className="text-sm text-green-600 mt-1">🏫 {schedule.university}</Text>
-                      <Text className="text-sm text-blue-600 mt-1">📄 {schedule.pdfFile.name}</Text>
                       
                       {hasExtractedData && (
                         <View className="mt-2">
-                          <Text className="text-xs text-gray-600">
+                          <Text style={[styles.textSecondary]} className="text-xs">
                             📊 {schedule.extractedData.courses.length} materias encontradas
                           </Text>
-                          <Text className="text-xs text-gray-600">
+                          <Text style={[styles.textSecondary]} className="text-xs">
                             👤 {schedule.extractedData.studentInfo.name}
                           </Text>
-                          <Text className="text-xs text-gray-500">
+                          <Text style={[styles.textTertiary]} className="text-xs">
                             Método: {schedule.extractedData.extractionMethod === 'text-extraction' ? '✅ Datos reales' : 
                                    schedule.extractedData.extractionMethod === 'advanced' ? '🔬 Análisis avanzado' :
                                    schedule.extractedData.extractionMethod === 'pattern-analysis' ? '🔍 Análisis de patrones' :
@@ -730,9 +861,20 @@ export default function ScheduleTableScreen({ navigation }) {
                         </View>
                       )}
                       
-                      {!hasExtractedData && (
+                      {schedule.materias && schedule.materias.length > 0 && (
+                        <View className="mt-2">
+                          <Text className="text-xs text-green-600">
+                            📚 {schedule.materias.length} materias manuales • {schedule.materias.reduce((sum, m) => sum + m.creditos, 0)} créditos
+                          </Text>
+                          <Text style={[styles.textSecondary]} className="text-xs">
+                            ✏️ Agregadas manualmente
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {!hasExtractedData && (!schedule.materias || schedule.materias.length === 0) && (
                         <Text className="text-xs text-yellow-600 mt-2">
-                          ⚠️ Sin datos extraídos - se mostrará información de ejemplo
+                          ⚠️ Sin datos extraídos ni materias - se mostrará información de ejemplo
                         </Text>
                       )}
                     </View>

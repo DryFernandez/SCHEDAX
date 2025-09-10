@@ -10,11 +10,50 @@ import {
   Platform 
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { androidStyles, colors, getGradientBackground } from '../utils/androidStyles';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function UserProfileScreen({ navigation }) {
+  const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [existingProfile, setExistingProfile] = useState(null);
+
+  const createThemedStyles = () => ({
+    container: {
+      backgroundColor: theme.colors.background,
+    },
+    header: {
+      backgroundColor: theme.colors.primary,
+    },
+    headerTitle: {
+      color: theme.colors.textOnPrimary,
+    },
+    headerSubtitle: {
+      color: theme.colors.textOnPrimary,
+      opacity: 0.8,
+    },
+    card: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+    },
+    textInput: {
+      backgroundColor: theme.colors.surface,
+      borderColor: theme.colors.border,
+      color: theme.colors.text,
+    },
+    textPrimary: {
+      color: theme.colors.text,
+    },
+    textSecondary: {
+      color: theme.colors.textSecondary,
+    },
+    textTertiary: {
+      color: theme.colors.textTertiary,
+    },
+    sectionHeader: {
+      backgroundColor: theme.colors.backgroundSecondary,
+    }
+  });
+
   const [profileData, setProfileData] = useState({
     // Basic Personal Information
     nombre: '',
@@ -268,25 +307,27 @@ export default function UserProfileScreen({ navigation }) {
     );
   };
 
+  const styles = createThemedStyles();
+
   return (
     <KeyboardAvoidingView 
       className="flex-1" 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View className="flex-1" style={[{ backgroundColor: colors.secondary[500] }, Platform.OS === 'android' && getGradientBackground('purple-pink')]}>
+      <View style={[styles.container]} className="flex-1">
         {/* Header */}
-        <View className="pt-12 pb-6 px-6">
+        <View style={[styles.header]} className="pt-12 pb-6 px-6">
           <View className="items-center mb-4">
-            <View className="bg-white w-20 h-20 rounded-full items-center justify-center mb-4">
+            <View style={[styles.card]} className="w-20 h-20 rounded-full items-center justify-center mb-4">
               <Text className="text-purple-500 text-3xl">📋</Text>
             </View>
-            <Text className="text-white text-2xl font-bold mb-2">Configuración de Perfil</Text>
-            <Text className="text-purple-100 text-center text-base mb-3">
+            <Text style={[styles.headerTitle]} className="text-2xl font-bold mb-2">Configuración de Perfil</Text>
+            <Text style={[styles.headerSubtitle]} className="text-center text-base mb-3">
               Completa tu información personal y académica
             </Text>
             {existingProfile?.scheduleFile && (
               <View className="bg-white/20 rounded-lg p-3 mt-2">
-                <Text className="text-white text-sm font-medium text-center">
+                <Text style={[styles.headerTitle]} className="text-sm font-medium text-center">
                   📄 Información académica extraída de: {existingProfile.scheduleFile.name}
                 </Text>
               </View>
@@ -295,7 +336,7 @@ export default function UserProfileScreen({ navigation }) {
         </View>
 
         {/* Form */}
-        <ScrollView className="flex-1 bg-white rounded-t-3xl px-6 pt-6">
+        <ScrollView style={[styles.container]} className="flex-1 rounded-t-3xl px-6 pt-6">
           <View className="space-y-6 pb-8">
             
             {/* Email Display */}
@@ -311,24 +352,28 @@ export default function UserProfileScreen({ navigation }) {
 
             {/* Basic Personal Information Section */}
             <View>
-              <Text className="text-lg font-bold text-gray-800 mb-4">Información Personal Básica</Text>
+              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Información Personal Básica</Text>
               
               <View className="space-y-3">
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Nombre(s) *</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Nombre(s) *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Tu nombre"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.nombre}
                     onChangeText={(text) => handleInputChange('nombre', text)}
                   />
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Apellidos *</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Apellidos *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Tus apellidos"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.apellidos}
                     onChangeText={(text) => handleInputChange('apellidos', text)}
                   />
@@ -336,20 +381,24 @@ export default function UserProfileScreen({ navigation }) {
                 
                 <View className="flex-row space-x-3">
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Teléfono *</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Teléfono *</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="Número de teléfono"
+                      placeholderTextColor={theme.colors.textTertiary}
                       keyboardType="phone-pad"
                       value={profileData.telefono}
                       onChangeText={(text) => handleInputChange('telefono', text)}
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Edad *</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Edad *</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="Tu edad"
+                      placeholderTextColor={theme.colors.textTertiary}
                       keyboardType="numeric"
                       value={profileData.edad}
                       onChangeText={(text) => handleInputChange('edad', text)}
@@ -360,35 +409,41 @@ export default function UserProfileScreen({ navigation }) {
             </View>
 
             {/* Basic Educational Information Section */}
-            <View>
-              <Text className="text-lg font-bold text-gray-800 mb-4">Información Educativa Básica</Text>
+            <View style={[styles.card]}>
+              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Información Educativa Básica</Text>
               
               <View className="space-y-3">
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Matrícula *</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Matrícula *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Tu número de matrícula"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.matricula}
                     onChangeText={(text) => handleInputChange('matricula', text)}
                   />
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Institución *</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Institución *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Nombre de tu universidad/institución"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.institucion}
                     onChangeText={(text) => handleInputChange('institucion', text)}
                   />
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Carrera *</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Carrera *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Tu carrera o programa académico"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.carrera}
                     onChangeText={(text) => handleInputChange('carrera', text)}
                   />
@@ -397,15 +452,17 @@ export default function UserProfileScreen({ navigation }) {
             </View>
 
             {/* Extended Personal Details Section */}
-            <View>
-              <Text className="text-lg font-bold text-gray-800 mb-4">Información Personal Adicional</Text>
+            <View style={[styles.card]}>
+              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Información Personal Adicional</Text>
               
               <View className="space-y-3">
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento *</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Fecha de Nacimiento *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="DD/MM/YYYY"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.fechaNacimiento}
                     onChangeText={(text) => handleInputChange('fechaNacimiento', text)}
                   />
@@ -413,19 +470,23 @@ export default function UserProfileScreen({ navigation }) {
                 
                 <View className="flex-row space-x-3">
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Género *</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Género *</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="Masculino/Femenino/Otro"
+                      placeholderTextColor={theme.colors.textTertiary}
                       value={profileData.genero}
                       onChangeText={(text) => handleInputChange('genero', text)}
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Estado Civil</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Estado Civil</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="Soltero/Casado/Otro"
+                      placeholderTextColor={theme.colors.textTertiary}
                       value={profileData.estadoCivil}
                       onChangeText={(text) => handleInputChange('estadoCivil', text)}
                     />
@@ -433,9 +494,11 @@ export default function UserProfileScreen({ navigation }) {
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Nacionalidad</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Nacionalidad</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
+                    placeholderTextColor={theme.colors.textTertiary}
                     placeholder="e.g., Mexicana, Colombiana"
                     value={profileData.nacionalidad}
                     onChangeText={(text) => handleInputChange('nacionalidad', text)}
@@ -444,19 +507,23 @@ export default function UserProfileScreen({ navigation }) {
                 
                 <View className="flex-row space-x-3">
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Ciudad de Residencia *</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Ciudad de Residencia *</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="Ciudad donde vives"
+                      placeholderTextColor={theme.colors.textTertiary}
                       value={profileData.ciudadResidencia}
                       onChangeText={(text) => handleInputChange('ciudadResidencia', text)}
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Código Postal</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Código Postal</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="CP"
+                      placeholderTextColor={theme.colors.textTertiary}
                       value={profileData.codigoPostal}
                       onChangeText={(text) => handleInputChange('codigoPostal', text)}
                     />
@@ -466,15 +533,17 @@ export default function UserProfileScreen({ navigation }) {
             </View>
 
             {/* Emergency Contact Section */}
-            <View>
-              <Text className="text-lg font-bold text-gray-800 mb-4">Contacto de Emergencia</Text>
+            <View style={[styles.card]}>
+              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Contacto de Emergencia</Text>
               
               <View className="space-y-3">
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Nombre Completo *</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Nombre Completo *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Nombre del contacto de emergencia"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.contactoEmergencia.nombre}
                     onChangeText={(text) => handleInputChange('nombre', text, true, 'contactoEmergencia')}
                   />
@@ -482,19 +551,23 @@ export default function UserProfileScreen({ navigation }) {
                 
                 <View className="flex-row space-x-3">
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Relación</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Relación</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="Padre/Madre/Hermano/etc"
+                      placeholderTextColor={theme.colors.textTertiary}
                       value={profileData.contactoEmergencia.relacion}
                       onChangeText={(text) => handleInputChange('relacion', text, true, 'contactoEmergencia')}
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Teléfono *</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Teléfono *</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="Número de teléfono"
+                      placeholderTextColor={theme.colors.textTertiary}
                       keyboardType="phone-pad"
                       value={profileData.contactoEmergencia.telefono}
                       onChangeText={(text) => handleInputChange('telefono', text, true, 'contactoEmergencia')}
@@ -549,46 +622,51 @@ export default function UserProfileScreen({ navigation }) {
             )}
 
             {/* Academic Background Section */}
-            <View>
+            <View style={[styles.card]}>
               <View className="flex-row items-center mb-4">
-                <Text className="text-lg font-bold text-gray-800 flex-1">Información Académica Detallada</Text>
-                <View className="bg-green-100 px-2 py-1 rounded-full">
-                  <Text className="text-green-600 text-xs font-medium">✏️ Editable</Text>
+                <Text style={[styles.textPrimary]} className="text-lg font-bold flex-1">Información Académica Detallada</Text>
+                <View style={{ backgroundColor: theme.colors.primary + '20' }} className="px-2 py-1 rounded-full">
+                  <Text style={{ color: theme.colors.primary }} className="text-xs font-medium">✏️ Editable</Text>
                 </View>
               </View>
               
               <View className="space-y-3">
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Nivel Educativo *</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Nivel Educativo *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-blue-50"
+                    style={[styles.textInput, { backgroundColor: theme.colors.primary + '10' }]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Licenciatura/Maestría/Doctorado"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.nivelEducativo}
                     onChangeText={(text) => handleInputChange('nivelEducativo', text)}
                   />
                   {profileData.nivelEducativo && (
-                    <Text className="text-xs text-blue-600 mt-1">✓ Información extraída automáticamente</Text>
+                    <Text style={{ color: theme.colors.primary }} className="text-xs mt-1">✓ Información extraída automáticamente</Text>
                   )}
                 </View>
                 
                 <View className="flex-row space-x-3">
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Año de Ingreso *</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Año de Ingreso *</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-blue-50"
+                      style={[styles.textInput, { backgroundColor: theme.colors.primary + '10' }]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="2024"
+                      placeholderTextColor={theme.colors.textTertiary}
                       keyboardType="numeric"
                       value={profileData.añoIngreso}
                       onChangeText={(text) => handleInputChange('añoIngreso', text)}
                     />
                     {profileData.añoIngreso && (
-                      <Text className="text-xs text-blue-600 mt-1">✓ Extraído del archivo</Text>
+                      <Text style={{ color: theme.colors.primary }} className="text-xs mt-1">✓ Extraído del archivo</Text>
                     )}
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Año de Egreso Estimado</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Año de Egreso Estimado</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="2028"
                       keyboardType="numeric"
                       value={profileData.añoEgreso}
@@ -599,20 +677,24 @@ export default function UserProfileScreen({ navigation }) {
                 
                 <View className="flex-row space-x-3">
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Promedio General</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Promedio General</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="9.5"
+                      placeholderTextColor={theme.colors.textTertiary}
                       keyboardType="decimal-pad"
                       value={profileData.promedioGeneral}
                       onChangeText={(text) => handleInputChange('promedioGeneral', text)}
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1">Becas/Ayudas</Text>
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Becas/Ayudas</Text>
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base"
                       placeholder="Beca de Excelencia"
+                      placeholderTextColor={theme.colors.textTertiary}
                       value={profileData.becas}
                       onChangeText={(text) => handleInputChange('becas', text)}
                     />
@@ -653,25 +735,29 @@ export default function UserProfileScreen({ navigation }) {
             </View>
 
             {/* Skills and Interests Section */}
-            <View>
-              <Text className="text-lg font-bold text-gray-800 mb-4">Habilidades e Intereses</Text>
+            <View style={[styles.card]}>
+              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Habilidades e Intereses</Text>
               
               <View className="space-y-3">
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Idiomas</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Idiomas</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Español (Nativo), Inglés (Intermedio)"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.idiomas}
                     onChangeText={(text) => handleInputChange('idiomas', text)}
                   />
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Habilidades Técnicas</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Habilidades Técnicas</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Programación, Diseño, Análisis de datos"
+                    placeholderTextColor={theme.colors.textTertiary}
                     multiline
                     numberOfLines={3}
                     value={profileData.habilidades}
@@ -680,19 +766,22 @@ export default function UserProfileScreen({ navigation }) {
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Pasatiempos</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Pasatiempos</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Lectura, deportes, música, videojuegos"
+                    placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.pasatiempos}
                     onChangeText={(text) => handleInputChange('pasatiempos', text)}
                   />
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Objetivos Académicos</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Objetivos Académicos</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="Metas y objetivos para tu carrera académica"
                     multiline
                     numberOfLines={3}
@@ -704,15 +793,17 @@ export default function UserProfileScreen({ navigation }) {
             </View>
 
             {/* Professional Links Section */}
-            <View>
-              <Text className="text-lg font-bold text-gray-800 mb-4">Enlaces Profesionales (Opcional)</Text>
+            <View style={[styles.card]}>
+              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Enlaces Profesionales (Opcional)</Text>
               
               <View className="space-y-3">
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">LinkedIn</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">LinkedIn</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="linkedin.com/in/tu-perfil"
+                    placeholderTextColor={theme.colors.textTertiary}
                     autoCapitalize="none"
                     value={profileData.linkedIn}
                     onChangeText={(text) => handleInputChange('linkedIn', text)}
@@ -720,10 +811,12 @@ export default function UserProfileScreen({ navigation }) {
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">GitHub</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">GitHub</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="github.com/tu-usuario"
+                    placeholderTextColor={theme.colors.textTertiary}
                     autoCapitalize="none"
                     value={profileData.github}
                     onChangeText={(text) => handleInputChange('github', text)}
@@ -731,10 +824,12 @@ export default function UserProfileScreen({ navigation }) {
                 </View>
                 
                 <View>
-                  <Text className="text-sm font-medium text-gray-700 mb-1">Portfolio/Website</Text>
+                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Portfolio/Website</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-3 text-base bg-white"
+                    style={[styles.textInput]}
+                    className="border rounded-lg px-3 py-3 text-base"
                     placeholder="tu-portfolio.com"
+                    placeholderTextColor={theme.colors.textTertiary}
                     autoCapitalize="none"
                     value={profileData.portfolio}
                     onChangeText={(text) => handleInputChange('portfolio', text)}
@@ -747,25 +842,26 @@ export default function UserProfileScreen({ navigation }) {
             <View className="space-y-3 pt-4">
               <TouchableOpacity 
                 className="py-4 px-6 rounded-xl items-center"
-                style={isLoading ? { backgroundColor: '#9ca3af' } : [{ backgroundColor: colors.secondary[500] }, Platform.OS === 'android' && getGradientBackground('purple-pink')]}
+                style={isLoading ? { backgroundColor: '#9ca3af' } : { backgroundColor: theme.colors.primary }}
                 onPress={saveExtendedProfile}
                 disabled={isLoading}
               >
-                <Text className="text-white text-lg font-semibold">
+                <Text style={{ color: theme.colors.textOnPrimary }} className="text-lg font-semibold">
                   {isLoading ? 'Guardando información...' : 'Guardar y Continuar'}
                 </Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                className="py-3 px-6 rounded-xl items-center border border-gray-300"
+                style={[styles.textInput]}
+                className="py-3 px-6 rounded-xl items-center border"
                 onPress={skipExtendedProfile}
               >
-                <Text className="text-gray-600 font-medium">Omitir por ahora</Text>
+                <Text style={[styles.textSecondary]} className="font-medium">Omitir por ahora</Text>
               </TouchableOpacity>
             </View>
 
             <View className="items-center mt-2 mb-6">
-              <Text className="text-gray-400 text-sm text-center">
+              <Text style={[styles.textTertiary]} className="text-sm text-center">
                 * Campos obligatorios{'\n'}
                 Puedes completar esta información más tarde desde tu perfil
               </Text>
