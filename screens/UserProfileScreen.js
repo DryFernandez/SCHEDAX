@@ -7,15 +7,159 @@ import {
   ScrollView, 
   Alert,
   KeyboardAvoidingView,
-  Platform 
+  Platform,
+  Modal 
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../contexts/ThemeContext';
+
+// Importar datos externos
+import { 
+  institutionCategories, 
+  careersByInstitution, 
+  hasPreDefinedCareers 
+} from '../data/institutionsData';
+import { 
+  requiredFields, 
+  genderOptions, 
+  validateRequiredFields 
+} from '../data/validationRules';
+import { 
+  formSections, 
+  fieldPlaceholders, 
+  fieldLabels, 
+  modalConfig, 
+  buttonConfig, 
+  systemMessages 
+} from '../data/formConfig';
+import { 
+  months, 
+  getDaysInMonth, 
+  formatDate, 
+  getYearRange, 
+  formatPhoneNumber 
+} from '../data/dateUtils';
+
+// Componente para selector de fecha simple
+const SimpleDatePicker = ({ onDateSelect }) => {
+  const { theme } = useTheme();
+  const [selectedDay, setSelectedDay] = useState(new Date().getDate());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+  const handleConfirm = () => {
+    const selectedDate = new Date(selectedYear, selectedMonth - 1, selectedDay);
+    onDateSelect(selectedDate);
+  };
+
+  return (
+    <View className="space-y-4">
+      {/* Selector de día */}
+      <View>
+        <Text style={{ color: theme.colors.text }} className="text-sm font-medium mb-2">Día</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="space-x-2">
+          <View className="flex-row space-x-2 px-2">
+            {Array.from({ length: getDaysInMonth(selectedMonth, selectedYear) }, (_, i) => i + 1).map(day => (
+              <TouchableOpacity
+                key={day}
+                className="w-12 h-12 rounded-lg items-center justify-center"
+                style={{
+                  backgroundColor: selectedDay === day ? theme.colors.primary : theme.colors.surface,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                }}
+                onPress={() => setSelectedDay(day)}
+              >
+                <Text style={{ 
+                  color: selectedDay === day ? theme.colors.textOnPrimary : theme.colors.text 
+                }} className="font-medium">
+                  {day}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Selector de mes */}
+      <View>
+        <Text style={{ color: theme.colors.text }} className="text-sm font-medium mb-2">Mes</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View className="flex-row space-x-2 px-2">
+            {months.map((month, index) => (
+              <TouchableOpacity
+                key={month}
+                className="px-4 py-3 rounded-lg"
+                style={{
+                  backgroundColor: selectedMonth === index + 1 ? theme.colors.primary : theme.colors.surface,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                }}
+                onPress={() => setSelectedMonth(index + 1)}
+              >
+                <Text style={{ 
+                  color: selectedMonth === index + 1 ? theme.colors.textOnPrimary : theme.colors.text 
+                }} className="font-medium">
+                  {month}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      {/* Selector de año */}
+      <View>
+        <Text style={{ color: theme.colors.text }} className="text-sm font-medium mb-2">Año</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View className="flex-row space-x-2 px-2">
+            {getYearRange().map(year => (
+              <TouchableOpacity
+                key={year}
+                className="px-4 py-3 rounded-lg"
+                style={{
+                  backgroundColor: selectedYear === year ? theme.colors.primary : theme.colors.surface,
+                  borderWidth: 1,
+                  borderColor: theme.colors.border,
+                }}
+                onPress={() => setSelectedYear(year)}
+              >
+                <Text style={{ 
+                  color: selectedYear === year ? theme.colors.textOnPrimary : theme.colors.text 
+                }} className="font-medium">
+                  {year}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
+
+      <TouchableOpacity
+        className="py-4 px-6 rounded-xl mt-4"
+        style={{ backgroundColor: theme.colors.primary }}
+        onPress={handleConfirm}
+      >
+        <Text style={{ color: theme.colors.textOnPrimary }} className="text-center font-semibold">
+          {buttonConfig.confirm.text}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 export default function UserProfileScreen({ navigation }) {
   const { theme } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
   const [existingProfile, setExistingProfile] = useState(null);
+  const [showGenderModal, setShowGenderModal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showInstitutionModal, setShowInstitutionModal] = useState(false);
+  const [showCustomInstitution, setShowCustomInstitution] = useState(false);
+  const [customInstitutionText, setCustomInstitutionText] = useState('');
+  const [showCareerModal, setShowCareerModal] = useState(false);
+  const [showCustomCareer, setShowCustomCareer] = useState(false);
+  const [customCareerText, setCustomCareerText] = useState('');
 
   const createThemedStyles = () => ({
     container: {
@@ -60,53 +204,16 @@ export default function UserProfileScreen({ navigation }) {
     apellidos: '',
     telefono: '',
     edad: '',
-    
-    // Extended Personal Details
-    fechaNacimiento: '',
     genero: '',
-    estadoCivil: '',
-    nacionalidad: '',
-    ciudadResidencia: '',
-    codigoPostal: '',
+    direccion: '',
     
-    // Educational Information (Basic)
+    // Educational Information (Basic from onboarding)
     matricula: '',
     institucion: '',
     carrera: '',
-    
-    // Emergency Contact
-    contactoEmergencia: {
-      nombre: '',
-      relacion: '',
-      telefono: '',
-    },
-    
-    // Academic Background
-    nivelEducativo: '',
-    promedioGeneral: '',
-    añoIngreso: '',
-    añoEgreso: '',
-    becas: '',
-    
-    // Additional Information
-    idiomas: '',
-    habilidades: '',
-    pasatiempos: '',
-    objetivosAcademicos: '',
-    
-    // Work Experience (Optional)
-    experienciaLaboral: '',
-    trabajoActual: '',
-    
-    // Health Information (Optional)
-    tipoSangre: '',
-    alergias: '',
-    medicamentos: '',
-    
-    // Social Media & Links
-    linkedIn: '',
-    github: '',
-    portfolio: '',
+    periodo: '',
+    semestre: '',
+    año: '',
   });
 
   useEffect(() => {
@@ -207,6 +314,29 @@ export default function UserProfileScreen({ navigation }) {
     return extractedData;
   };
 
+  // Función para manejar cambios en el teléfono
+  const handlePhoneChange = (text) => {
+    const formatted = formatPhoneNumber(text || '');
+    handleInputChange('telefono', formatted);
+  };
+
+  // Función para formatear fecha
+  const formatDate = (day, month, year) => {
+    const formattedDay = day.toString().padStart(2, '0');
+    const formattedMonth = month.toString().padStart(2, '0');
+    return `${formattedDay}/${formattedMonth}/${year}`;
+  };
+
+  // Función para manejar selección de fecha
+  const handleDateSelect = (selectedDate) => {
+    const day = selectedDate.getDate();
+    const month = selectedDate.getMonth() + 1; // Los meses van de 0-11
+    const year = selectedDate.getFullYear();
+    const formattedDate = formatDate(day, month, year);
+    handleInputChange('fechaNacimiento', formattedDate);
+    setShowDatePicker(false);
+  };
+
   const handleInputChange = (field, value, isNested = false, parentField = '') => {
     if (isNested) {
       setProfileData(prev => ({
@@ -224,31 +354,9 @@ export default function UserProfileScreen({ navigation }) {
     }
   };
 
-  const validateRequiredFields = () => {
-    const requiredFields = [
-      'nombre', 'apellidos', 'telefono', 'edad',
-      'matricula', 'institucion', 'carrera',
-      'fechaNacimiento', 'genero', 'ciudadResidencia',
-      'nivelEducativo', 'añoIngreso'
-    ];
-    
-    for (let field of requiredFields) {
-      if (!profileData[field].trim()) {
-        return false;
-      }
-    }
-    
-    // Check emergency contact required fields
-    if (!profileData.contactoEmergencia.nombre.trim() || 
-        !profileData.contactoEmergencia.telefono.trim()) {
-      return false;
-    }
-    
-    return true;
-  };
-
   const saveExtendedProfile = async () => {
-    if (!validateRequiredFields()) {
+    const validation = validateRequiredFields(profileData);
+    if (!validation.isValid) {
       Alert.alert('Campos Requeridos', 'Por favor completa todos los campos obligatorios marcados con *');
       return;
     }
@@ -285,8 +393,8 @@ export default function UserProfileScreen({ navigation }) {
       
       Alert.alert(
         'Perfil Completado',
-        'Tu información ha sido guardada exitosamente',
-        [{ text: 'Continuar', onPress: () => navigation.replace('MainApp') }]
+        'Tu información ha sido guardada exitosamente. Ahora configuremos tu sistema académico.',
+        [{ text: 'Continuar', onPress: () => navigation.replace('Statistics') }]
       );
     } catch (error) {
       console.error('Error saving extended profile:', error);
@@ -302,7 +410,7 @@ export default function UserProfileScreen({ navigation }) {
       '¿Estás seguro de que quieres continuar sin completar tu perfil? Puedes hacerlo más tarde desde la configuración.',
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Omitir', onPress: () => navigation.replace('MainApp') }
+        { text: 'Omitir', onPress: () => navigation.replace('Statistics') }
       ]
     );
   };
@@ -360,7 +468,7 @@ export default function UserProfileScreen({ navigation }) {
                   <TextInput
                     style={[styles.textInput]}
                     className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Tu nombre"
+                    placeholder={fieldPlaceholders.nombre}
                     placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.nombre}
                     onChangeText={(text) => handleInputChange('nombre', text)}
@@ -372,7 +480,7 @@ export default function UserProfileScreen({ navigation }) {
                   <TextInput
                     style={[styles.textInput]}
                     className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Tus apellidos"
+                    placeholder={fieldPlaceholders.apellidos}
                     placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.apellidos}
                     onChangeText={(text) => handleInputChange('apellidos', text)}
@@ -385,11 +493,12 @@ export default function UserProfileScreen({ navigation }) {
                     <TextInput
                       style={[styles.textInput]}
                       className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="Número de teléfono"
+                      placeholder={fieldPlaceholders.telefono}
                       placeholderTextColor={theme.colors.textTertiary}
                       keyboardType="phone-pad"
                       value={profileData.telefono}
-                      onChangeText={(text) => handleInputChange('telefono', text)}
+                      onChangeText={handlePhoneChange}
+                      maxLength={14}
                     />
                   </View>
                   <View className="flex-1">
@@ -397,7 +506,7 @@ export default function UserProfileScreen({ navigation }) {
                     <TextInput
                       style={[styles.textInput]}
                       className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="Tu edad"
+                      placeholder={fieldPlaceholders.edad}
                       placeholderTextColor={theme.colors.textTertiary}
                       keyboardType="numeric"
                       value={profileData.edad}
@@ -418,7 +527,7 @@ export default function UserProfileScreen({ navigation }) {
                   <TextInput
                     style={[styles.textInput]}
                     className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Tu número de matrícula"
+                    placeholder={fieldPlaceholders.matricula}
                     placeholderTextColor={theme.colors.textTertiary}
                     value={profileData.matricula}
                     onChangeText={(text) => handleInputChange('matricula', text)}
@@ -427,413 +536,84 @@ export default function UserProfileScreen({ navigation }) {
                 
                 <View>
                   <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Institución *</Text>
-                  <TextInput
+                  <TouchableOpacity
                     style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Nombre de tu universidad/institución"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={profileData.institucion}
-                    onChangeText={(text) => handleInputChange('institucion', text)}
-                  />
+                    className="border rounded-lg px-3 py-3 text-base flex-row items-center justify-between"
+                    onPress={() => setShowInstitutionModal(true)}
+                  >
+                    <Text style={profileData.institucion ? [styles.textPrimary] : { color: theme.colors.textTertiary }}>
+                      {profileData.institucion || 'Seleccionar institución'}
+                    </Text>
+                    <Text style={[styles.textPrimary]}>▼</Text>
+                  </TouchableOpacity>
                 </View>
                 
                 <View>
                   <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Carrera *</Text>
-                  <TextInput
+                  <TouchableOpacity
                     style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Tu carrera o programa académico"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={profileData.carrera}
-                    onChangeText={(text) => handleInputChange('carrera', text)}
-                  />
+                    className="border rounded-lg px-3 py-3 text-base flex-row items-center justify-between"
+                    onPress={() => {
+                      if (!profileData.institucion) {
+                        Alert.alert('Información', 'Primero selecciona una institución para ver las carreras disponibles.');
+                        return;
+                      }
+                      setShowCareerModal(true);
+                    }}
+                  >
+                    <Text style={profileData.carrera ? [styles.textPrimary] : { color: theme.colors.textTertiary }}>
+                      {profileData.carrera || (profileData.institucion ? 'Seleccionar carrera' : 'Primero selecciona una institución')}
+                    </Text>
+                    <Text style={[styles.textPrimary]}>▼</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
 
-            {/* Extended Personal Details Section */}
+            {/* Additional Personal Information */}
             <View style={[styles.card]}>
               <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Información Personal Adicional</Text>
               
               <View className="space-y-3">
                 <View>
                   <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Fecha de Nacimiento *</Text>
-                  <TextInput
+                  <TouchableOpacity
                     style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="DD/MM/YYYY"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={profileData.fechaNacimiento}
-                    onChangeText={(text) => handleInputChange('fechaNacimiento', text)}
-                  />
+                    className="border rounded-lg px-3 py-3 text-base flex-row items-center justify-between"
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <Text style={profileData.fechaNacimiento ? [styles.textPrimary] : { color: theme.colors.textTertiary }}>
+                      {profileData.fechaNacimiento || 'DD/MM/YYYY'}
+                    </Text>
+                    <Text style={[styles.textPrimary]}>📅</Text>
+                  </TouchableOpacity>
                 </View>
                 
                 <View className="flex-row space-x-3">
                   <View className="flex-1">
                     <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Género *</Text>
+                    <TouchableOpacity
+                      style={[styles.textInput]}
+                      className="border rounded-lg px-3 py-3 text-base flex-row items-center justify-between"
+                      onPress={() => setShowGenderModal(true)}
+                    >
+                      <Text style={profileData.genero ? [styles.textPrimary] : { color: theme.colors.textTertiary }}>
+                        {profileData.genero || fieldPlaceholders.genero}
+                      </Text>
+                      <Text style={[styles.textPrimary]}>▼</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View className="flex-1">
+                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Dirección *</Text>
                     <TextInput
                       style={[styles.textInput]}
                       className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="Masculino/Femenino/Otro"
+                      placeholder={fieldPlaceholders.direccion}
                       placeholderTextColor={theme.colors.textTertiary}
-                      value={profileData.genero}
-                      onChangeText={(text) => handleInputChange('genero', text)}
+                      value={profileData.direccion}
+                      onChangeText={(text) => handleInputChange('direccion', text)}
                     />
                   </View>
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Estado Civil</Text>
-                    <TextInput
-                      style={[styles.textInput]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="Soltero/Casado/Otro"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      value={profileData.estadoCivil}
-                      onChangeText={(text) => handleInputChange('estadoCivil', text)}
-                    />
-                  </View>
-                </View>
-                
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Nacionalidad</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    placeholder="e.g., Mexicana, Colombiana"
-                    value={profileData.nacionalidad}
-                    onChangeText={(text) => handleInputChange('nacionalidad', text)}
-                  />
-                </View>
-                
-                <View className="flex-row space-x-3">
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Ciudad de Residencia *</Text>
-                    <TextInput
-                      style={[styles.textInput]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="Ciudad donde vives"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      value={profileData.ciudadResidencia}
-                      onChangeText={(text) => handleInputChange('ciudadResidencia', text)}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Código Postal</Text>
-                    <TextInput
-                      style={[styles.textInput]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="CP"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      value={profileData.codigoPostal}
-                      onChangeText={(text) => handleInputChange('codigoPostal', text)}
-                    />
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Emergency Contact Section */}
-            <View style={[styles.card]}>
-              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Contacto de Emergencia</Text>
-              
-              <View className="space-y-3">
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Nombre Completo *</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Nombre del contacto de emergencia"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={profileData.contactoEmergencia.nombre}
-                    onChangeText={(text) => handleInputChange('nombre', text, true, 'contactoEmergencia')}
-                  />
-                </View>
-                
-                <View className="flex-row space-x-3">
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Relación</Text>
-                    <TextInput
-                      style={[styles.textInput]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="Padre/Madre/Hermano/etc"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      value={profileData.contactoEmergencia.relacion}
-                      onChangeText={(text) => handleInputChange('relacion', text, true, 'contactoEmergencia')}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Teléfono *</Text>
-                    <TextInput
-                      style={[styles.textInput]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="Número de teléfono"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      keyboardType="phone-pad"
-                      value={profileData.contactoEmergencia.telefono}
-                      onChangeText={(text) => handleInputChange('telefono', text, true, 'contactoEmergencia')}
-                    />
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Extracted Academic Information Display */}
-            {existingProfile && (
-              <View className="mb-6 bg-blue-50 p-4 rounded-lg">
-                <Text className="text-lg font-bold text-blue-800 mb-3">
-                  📄 Información Académica del Archivo
-                </Text>
-                <View className="space-y-2">
-                  {existingProfile.matricula && (
-                    <View className="flex-row">
-                      <Text className="text-sm text-gray-600 font-medium w-24">Matrícula:</Text>
-                      <Text className="text-sm text-gray-800 flex-1">{existingProfile.matricula}</Text>
-                    </View>
-                  )}
-                  {existingProfile.institucion && (
-                    <View className="flex-row">
-                      <Text className="text-sm text-gray-600 font-medium w-24">Institución:</Text>
-                      <Text className="text-sm text-gray-800 flex-1">{existingProfile.institucion}</Text>
-                    </View>
-                  )}
-                  {existingProfile.carrera && (
-                    <View className="flex-row">
-                      <Text className="text-sm text-gray-600 font-medium w-24">Carrera:</Text>
-                      <Text className="text-sm text-gray-800 flex-1">{existingProfile.carrera}</Text>
-                    </View>
-                  )}
-                  {existingProfile.periodo && (
-                    <View className="flex-row">
-                      <Text className="text-sm text-gray-600 font-medium w-24">Período:</Text>
-                      <Text className="text-sm text-gray-800 flex-1">{existingProfile.periodo}</Text>
-                    </View>
-                  )}
-                  {existingProfile.scheduleFile && (
-                    <View className="flex-row">
-                      <Text className="text-sm text-gray-600 font-medium w-24">Archivo:</Text>
-                      <Text className="text-sm text-gray-800 flex-1">{existingProfile.scheduleFile.name}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text className="text-xs text-blue-600 mt-3">
-                  ℹ️ Esta información fue extraída de tu archivo de horario cargado
-                </Text>
-              </View>
-            )}
-
-            {/* Academic Background Section */}
-            <View style={[styles.card]}>
-              <View className="flex-row items-center mb-4">
-                <Text style={[styles.textPrimary]} className="text-lg font-bold flex-1">Información Académica Detallada</Text>
-                <View style={{ backgroundColor: theme.colors.primary + '20' }} className="px-2 py-1 rounded-full">
-                  <Text style={{ color: theme.colors.primary }} className="text-xs font-medium">✏️ Editable</Text>
-                </View>
-              </View>
-              
-              <View className="space-y-3">
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Nivel Educativo *</Text>
-                  <TextInput
-                    style={[styles.textInput, { backgroundColor: theme.colors.primary + '10' }]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Licenciatura/Maestría/Doctorado"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={profileData.nivelEducativo}
-                    onChangeText={(text) => handleInputChange('nivelEducativo', text)}
-                  />
-                  {profileData.nivelEducativo && (
-                    <Text style={{ color: theme.colors.primary }} className="text-xs mt-1">✓ Información extraída automáticamente</Text>
-                  )}
-                </View>
-                
-                <View className="flex-row space-x-3">
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Año de Ingreso *</Text>
-                    <TextInput
-                      style={[styles.textInput, { backgroundColor: theme.colors.primary + '10' }]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="2024"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      keyboardType="numeric"
-                      value={profileData.añoIngreso}
-                      onChangeText={(text) => handleInputChange('añoIngreso', text)}
-                    />
-                    {profileData.añoIngreso && (
-                      <Text style={{ color: theme.colors.primary }} className="text-xs mt-1">✓ Extraído del archivo</Text>
-                    )}
-                  </View>
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Año de Egreso Estimado</Text>
-                    <TextInput
-                      style={[styles.textInput]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="2028"
-                      keyboardType="numeric"
-                      value={profileData.añoEgreso}
-                      onChangeText={(text) => handleInputChange('añoEgreso', text)}
-                    />
-                  </View>
-                </View>
-                
-                <View className="flex-row space-x-3">
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Promedio General</Text>
-                    <TextInput
-                      style={[styles.textInput]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="9.5"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      keyboardType="decimal-pad"
-                      value={profileData.promedioGeneral}
-                      onChangeText={(text) => handleInputChange('promedioGeneral', text)}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Becas/Ayudas</Text>
-                    <TextInput
-                      style={[styles.textInput]}
-                      className="border rounded-lg px-3 py-3 text-base"
-                      placeholder="Beca de Excelencia"
-                      placeholderTextColor={theme.colors.textTertiary}
-                      value={profileData.becas}
-                      onChangeText={(text) => handleInputChange('becas', text)}
-                    />
-                  </View>
-                </View>
-
-                {/* Pre-populated fields from onboarding */}
-                <View className="bg-gray-50 p-3 rounded-lg mt-4">
-                  <Text className="text-sm font-medium text-gray-700 mb-2">Información de tu Perfil Básico:</Text>
-                  <View className="space-y-2">
-                    {existingProfile?.matricula && (
-                      <View className="flex-row">
-                        <Text className="text-xs text-gray-600 w-20">Matrícula:</Text>
-                        <Text className="text-xs text-gray-800 flex-1">{existingProfile.matricula}</Text>
-                      </View>
-                    )}
-                    {existingProfile?.institucion && (
-                      <View className="flex-row">
-                        <Text className="text-xs text-gray-600 w-20">Institución:</Text>
-                        <Text className="text-xs text-gray-800 flex-1">{existingProfile.institucion}</Text>
-                      </View>
-                    )}
-                    {existingProfile?.carrera && (
-                      <View className="flex-row">
-                        <Text className="text-xs text-gray-600 w-20">Carrera:</Text>
-                        <Text className="text-xs text-gray-800 flex-1">{existingProfile.carrera}</Text>
-                      </View>
-                    )}
-                    {existingProfile?.periodo && (
-                      <View className="flex-row">
-                        <Text className="text-xs text-gray-600 w-20">Período:</Text>
-                        <Text className="text-xs text-gray-800 flex-1">{existingProfile.periodo}</Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Skills and Interests Section */}
-            <View style={[styles.card]}>
-              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Habilidades e Intereses</Text>
-              
-              <View className="space-y-3">
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Idiomas</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Español (Nativo), Inglés (Intermedio)"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={profileData.idiomas}
-                    onChangeText={(text) => handleInputChange('idiomas', text)}
-                  />
-                </View>
-                
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Habilidades Técnicas</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Programación, Diseño, Análisis de datos"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    multiline
-                    numberOfLines={3}
-                    value={profileData.habilidades}
-                    onChangeText={(text) => handleInputChange('habilidades', text)}
-                  />
-                </View>
-                
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Pasatiempos</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Lectura, deportes, música, videojuegos"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={profileData.pasatiempos}
-                    onChangeText={(text) => handleInputChange('pasatiempos', text)}
-                  />
-                </View>
-                
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Objetivos Académicos</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="Metas y objetivos para tu carrera académica"
-                    multiline
-                    numberOfLines={3}
-                    value={profileData.objetivosAcademicos}
-                    onChangeText={(text) => handleInputChange('objetivosAcademicos', text)}
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* Professional Links Section */}
-            <View style={[styles.card]}>
-              <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4">Enlaces Profesionales (Opcional)</Text>
-              
-              <View className="space-y-3">
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">LinkedIn</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="linkedin.com/in/tu-perfil"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    autoCapitalize="none"
-                    value={profileData.linkedIn}
-                    onChangeText={(text) => handleInputChange('linkedIn', text)}
-                  />
-                </View>
-                
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">GitHub</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="github.com/tu-usuario"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    autoCapitalize="none"
-                    value={profileData.github}
-                    onChangeText={(text) => handleInputChange('github', text)}
-                  />
-                </View>
-                
-                <View>
-                  <Text style={[styles.textPrimary]} className="text-sm font-medium mb-1">Portfolio/Website</Text>
-                  <TextInput
-                    style={[styles.textInput]}
-                    className="border rounded-lg px-3 py-3 text-base"
-                    placeholder="tu-portfolio.com"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    autoCapitalize="none"
-                    value={profileData.portfolio}
-                    onChangeText={(text) => handleInputChange('portfolio', text)}
-                  />
                 </View>
               </View>
             </View>
@@ -869,6 +649,377 @@ export default function UserProfileScreen({ navigation }) {
           </View>
         </ScrollView>
       </View>
+
+      {/* Modal para seleccionar género */}
+      <Modal
+        visible={showGenderModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowGenderModal(false)}
+      >
+        <View className="flex-1 justify-end bg-black bg-opacity-50">
+          <View style={[styles.card]} className="rounded-t-3xl p-6">
+            <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4 text-center">
+              {modalConfig.gender.title}
+            </Text>
+            
+            <View className="space-y-3">
+              {genderOptions.map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  className="py-4 px-6 rounded-xl border"
+                  style={{ borderColor: theme.colors.border }}
+                  onPress={() => {
+                    handleInputChange('genero', option);
+                    setShowGenderModal(false);
+                  }}
+                >
+                  <Text style={[styles.textPrimary]} className="text-center font-medium">
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              
+              <TouchableOpacity
+                className="py-3 px-6 rounded-xl mt-4"
+                style={{ backgroundColor: theme.colors.textTertiary }}
+                onPress={() => setShowGenderModal(false)}
+              >
+                <Text className="text-center font-medium text-white">
+                  {buttonConfig.cancel.text}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para seleccionar fecha */}
+      <Modal
+        visible={showDatePicker}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View className="flex-1 justify-end bg-black bg-opacity-50">
+          <View style={[styles.card]} className="rounded-t-3xl p-6">
+            <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4 text-center">
+              Seleccionar Fecha de Nacimiento
+            </Text>
+            
+            <SimpleDatePicker onDateSelect={handleDateSelect} />
+            
+            <TouchableOpacity
+              className="py-3 px-6 rounded-xl mt-4"
+              style={{ backgroundColor: theme.colors.textTertiary }}
+              onPress={() => setShowDatePicker(false)}
+            >
+              <Text className="text-center font-medium text-white">
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para seleccionar institución */}
+      <Modal
+        visible={showInstitutionModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowInstitutionModal(false)}
+      >
+        <View className="flex-1 justify-end bg-black bg-opacity-50">
+          <View style={[styles.card, { backgroundColor: theme.colors.surface }]} className="rounded-t-3xl p-6">
+            <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4 text-center">
+              Seleccionar Institución Educativa
+            </Text>
+            
+            <View style={{ height: 400 }}>
+              <ScrollView showsVerticalScrollIndicator={true}>
+                <View className="space-y-4">
+                  {Object.entries(institutionCategories).map(([category, institutions]) => (
+                    <View key={category} className="mb-4">
+                      <Text style={[styles.textPrimary, { color: theme.colors.primary }]} className="text-sm font-bold mb-3 text-center">
+                        {category}
+                      </Text>
+                      <View className="space-y-2">
+                        {institutions.map((institution, index) => (
+                          <TouchableOpacity
+                            key={index}
+                            style={{
+                              backgroundColor: theme.colors.background,
+                              borderColor: theme.colors.border,
+                              borderWidth: 1,
+                              padding: 12,
+                              borderRadius: 8,
+                              marginBottom: 8
+                            }}
+                            onPress={() => {
+                              if (institution === 'Otra institución...') {
+                                setShowInstitutionModal(false);
+                                setCustomInstitutionText('');
+                                setShowCustomInstitution(true);
+                              } else {
+                                handleInputChange('institucion', institution);
+                                // Limpiar carrera cuando se cambia la institución
+                                handleInputChange('carrera', '');
+                                setShowInstitutionModal(false);
+                              }
+                            }}
+                          >
+                            <Text style={[styles.textPrimary]} className="font-medium text-sm">
+                              {institution}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+            
+            <TouchableOpacity
+              className="py-3 px-6 rounded-xl mt-4"
+              style={{ backgroundColor: theme.colors.textTertiary }}
+              onPress={() => setShowInstitutionModal(false)}
+            >
+              <Text className="text-center font-medium text-white">
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para institución personalizada */}
+      <Modal
+        visible={showCustomInstitution}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCustomInstitution(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black bg-opacity-50 px-6">
+          <View style={[styles.card, { backgroundColor: theme.colors.surface }]} className="w-full rounded-2xl p-6">
+            <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4 text-center">
+              Institución Personalizada
+            </Text>
+            
+            <Text style={[styles.textSecondary]} className="text-sm mb-4 text-center">
+              Ingresa el nombre de tu institución educativa:
+            </Text>
+            
+            <TextInput
+              style={[styles.textInput, {
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border,
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 20
+              }]}
+              placeholder={fieldPlaceholders.customInstitution}
+              placeholderTextColor={theme.colors.textTertiary}
+              value={customInstitutionText}
+              onChangeText={setCustomInstitutionText}
+              autoFocus={true}
+              multiline={false}
+            />
+            
+            <View className="flex-row space-x-3">
+              <TouchableOpacity
+                className="flex-1 py-3 px-6 rounded-xl border"
+                style={{ borderColor: theme.colors.border }}
+                onPress={() => {
+                  setShowCustomInstitution(false);
+                  setCustomInstitutionText('');
+                }}
+              >
+                <Text style={[styles.textSecondary]} className="text-center font-medium">
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                className="flex-1 py-3 px-6 rounded-xl"
+                style={{ 
+                  backgroundColor: (customInstitutionText || '').trim() ? theme.colors.primary : theme.colors.textTertiary 
+                }}
+                onPress={() => {
+                  if ((customInstitutionText || '').trim()) {
+                    handleInputChange('institucion', (customInstitutionText || '').trim());
+                    // Limpiar carrera cuando se cambia la institución
+                    handleInputChange('carrera', '');
+                    setShowCustomInstitution(false);
+                    setCustomInstitutionText('');
+                  }
+                }}
+                disabled={!(customInstitutionText || '').trim()}
+              >
+                <Text style={{ 
+                  color: (customInstitutionText || '').trim() ? theme.colors.textOnPrimary : '#ffffff' 
+                }} className="text-center font-medium">
+                  Guardar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para seleccionar carrera */}
+      <Modal
+        visible={showCareerModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCareerModal(false)}
+      >
+        <View className="flex-1 justify-end bg-black bg-opacity-50">
+          <View style={[styles.card, { backgroundColor: theme.colors.surface }]} className="rounded-t-3xl p-6">
+            <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4 text-center">
+              Carreras Disponibles
+            </Text>
+            <Text style={[styles.textSecondary]} className="text-sm mb-4 text-center">
+              {profileData.institucion}
+            </Text>
+            
+            <View style={{ height: 400 }}>
+              <ScrollView showsVerticalScrollIndicator={true}>
+                <View className="space-y-2">
+                  {profileData.institucion && careersByInstitution[profileData.institucion] ? (
+                    careersByInstitution[profileData.institucion].map((career, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={{
+                          backgroundColor: theme.colors.background,
+                          borderColor: theme.colors.border,
+                          borderWidth: 1,
+                          padding: 12,
+                          borderRadius: 8,
+                          marginBottom: 8
+                        }}
+                        onPress={() => {
+                          handleInputChange('carrera', career);
+                          setShowCareerModal(false);
+                        }}
+                      >
+                        <Text style={[styles.textPrimary]} className="font-medium text-sm">
+                          {career}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    // Si es una institución personalizada, mostrar opción para escribir carrera
+                    <TouchableOpacity
+                      style={{
+                        backgroundColor: theme.colors.background,
+                        borderColor: theme.colors.primary,
+                        borderWidth: 2,
+                        padding: 12,
+                        borderRadius: 8,
+                        marginBottom: 8
+                      }}
+                      onPress={() => {
+                        setShowCareerModal(false);
+                        setCustomCareerText('');
+                        setShowCustomCareer(true);
+                      }}
+                    >
+                      <Text style={[styles.textPrimary]} className="font-medium text-sm text-center">
+                        ✏️ Escribir carrera personalizada
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
+            
+            <TouchableOpacity
+              className="py-3 px-6 rounded-xl mt-4"
+              style={{ backgroundColor: theme.colors.textTertiary }}
+              onPress={() => setShowCareerModal(false)}
+            >
+              <Text className="text-center font-medium text-white">
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal para carrera personalizada */}
+      <Modal
+        visible={showCustomCareer}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowCustomCareer(false)}
+      >
+        <View className="flex-1 justify-center items-center bg-black bg-opacity-50 px-6">
+          <View style={[styles.card, { backgroundColor: theme.colors.surface }]} className="w-full rounded-2xl p-6">
+            <Text style={[styles.textPrimary]} className="text-lg font-bold mb-4 text-center">
+              Carrera Personalizada
+            </Text>
+            
+            <Text style={[styles.textSecondary]} className="text-sm mb-4 text-center">
+              Ingresa el nombre de tu carrera o programa académico:
+            </Text>
+            
+            <TextInput
+              style={[styles.textInput, {
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border,
+                borderWidth: 1,
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 20
+              }]}
+              placeholder={fieldPlaceholders.customCareer}
+              placeholderTextColor={theme.colors.textTertiary}
+              value={customCareerText}
+              onChangeText={setCustomCareerText}
+              autoFocus={true}
+              multiline={false}
+            />
+            
+            <View className="flex-row space-x-3">
+              <TouchableOpacity
+                className="flex-1 py-3 px-6 rounded-xl border"
+                style={{ borderColor: theme.colors.border }}
+                onPress={() => {
+                  setShowCustomCareer(false);
+                  setCustomCareerText('');
+                }}
+              >
+                <Text style={[styles.textSecondary]} className="text-center font-medium">
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                className="flex-1 py-3 px-6 rounded-xl"
+                style={{ 
+                  backgroundColor: (customCareerText || '').trim() ? theme.colors.primary : theme.colors.textTertiary 
+                }}
+                onPress={() => {
+                  if ((customCareerText || '').trim()) {
+                    handleInputChange('carrera', (customCareerText || '').trim());
+                    setShowCustomCareer(false);
+                    setCustomCareerText('');
+                  }
+                }}
+                disabled={!(customCareerText || '').trim()}
+              >
+                <Text style={{ 
+                  color: (customCareerText || '').trim() ? theme.colors.textOnPrimary : '#ffffff' 
+                }} className="text-center font-medium">
+                  Guardar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }

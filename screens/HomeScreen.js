@@ -76,12 +76,12 @@ export default function HomeScreen({ navigation }) {
                   marginRight: 16
                 }}>
                   <Text style={{ color: theme.colors.primary, fontSize: 24, fontWeight: 'bold' }}>
-                    {userProfile.nombre.charAt(0)}{userProfile.apellido.charAt(0)}
+                    {userProfile?.nombre?.charAt(0) || ''}{userProfile?.apellidos?.charAt(0) || ''}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.textTitle, { fontSize: 20 }]}>
-                    {userProfile.nombre} {userProfile.apellido}
+                    {userProfile?.nombre || ''} {userProfile?.apellidos || ''}
                   </Text>
                   <Text style={{ color: theme.colors.primary, fontWeight: '500' }}>
                     {userProfile.matricula}
@@ -137,6 +137,18 @@ export default function HomeScreen({ navigation }) {
                     <Text style={{ color: theme.colors.primary, fontSize: 12 }}>📄</Text>
                   )}
                 </View>
+                {userProfile.fechaNacimiento && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                    <Text style={[styles.textSecondary, { width: 80 }]}>🎂</Text>
+                    <Text style={[styles.textPrimary, { flex: 1 }]}>{userProfile.fechaNacimiento}</Text>
+                  </View>
+                )}
+                {userProfile.edad && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                    <Text style={[styles.textSecondary, { width: 80 }]}>👤</Text>
+                    <Text style={[styles.textPrimary, { flex: 1 }]}>{userProfile.edad} años</Text>
+                  </View>
+                )}
                 {userProfile.scheduleFile && (
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={[styles.textSecondary, { width: 80 }]}>📄</Text>

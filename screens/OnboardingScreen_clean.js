@@ -15,7 +15,6 @@ export default function OnboardingScreen({ navigation }) {
     nombre: '',
     apellido: '',
     edad: '',
-    fechaNacimiento: '',
     telefono: '',
     email: '',
     direccion: '',
@@ -268,17 +267,6 @@ export default function OnboardingScreen({ navigation }) {
               onChangeText={(text) => setUserProfile(prev => ({ ...prev, edad: text }))}
               placeholder="Ej: 20"
               keyboardType="numeric"
-              placeholderTextColor={colors.textSecondary}
-            />
-          </View>
-
-          <View style={androidStyles.inputGroup}>
-            <Text style={androidStyles.inputLabel}>Fecha de Nacimiento</Text>
-            <TextInput
-              style={androidStyles.input}
-              value={userProfile.fechaNacimiento}
-              onChangeText={(text) => setUserProfile(prev => ({ ...prev, fechaNacimiento: text }))}
-              placeholder="DD/MM/YYYY"
               placeholderTextColor={colors.textSecondary}
             />
           </View>

@@ -2,9 +2,9 @@
 import "./global.css";
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { View, Text } from 'react-native';
+import { View, Text, LogBox } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { createThemedStyles } from './utils/themeStyles';
@@ -16,12 +16,19 @@ import ScheduleTableScreen from './screens/ScheduleTableScreen';
 import CalendarScreen from './screens/CalendarScreen';
 import AnalyticsScreen from './screens/AnalyticsScreen';
 import UserProfileScreen from './screens/UserProfileScreen';
+import ProfileScreen from './screens/ProfileScreen';
+import StatisticsScreen from './screens/StatisticsScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import { UserStorage } from './services/UserStorage';
 import CustomDrawerContent from './components/CustomDrawerContent';
 
-const Stack = createStackNavigator();
+const Stack = createNativeStackNavigator();
 const Drawer = createDrawerNavigator();
+
+// Suppress old API warnings while libraries update
+LogBox.ignoreLogs([
+  "[react-native-gesture-handler] Seems like you're using an old API with gesture components, check out new Gestures system!",
+]);
 
 // Drawer Navigator Component
 function DrawerNavigator() {
@@ -33,9 +40,13 @@ function DrawerNavigator() {
       screenOptions={{
         headerShown: false,
         drawerType: 'front',
+        overlayColor: 'transparent',
         drawerStyle: {
           width: 280,
           backgroundColor: theme.colors.navigationBackground,
+        },
+        sceneContainerStyle: {
+          backgroundColor: theme.colors.background,
         },
       }}
     >
@@ -44,7 +55,9 @@ function DrawerNavigator() {
       <Drawer.Screen name="ScheduleTable" component={ScheduleTableScreen} />
       <Drawer.Screen name="Calendar" component={CalendarScreen} />
       <Drawer.Screen name="Analytics" component={AnalyticsScreen} />
-      <Drawer.Screen name="Profile" component={UserProfileScreen} />
+      <Drawer.Screen name="Statistics" component={StatisticsScreen} />
+      <Drawer.Screen name="Profile" component={ProfileScreen} />
+      <Drawer.Screen name="UserProfile" component={UserProfileScreen} />
       <Drawer.Screen name="Settings" component={SettingsScreen} />
     </Drawer.Navigator>
   );
@@ -76,12 +89,16 @@ function AppContent() {
           setInitialRoute('UserProfile');
         } else {
           const profile = JSON.parse(profileData);
-          // Check if profile is completed
-          if (profile.profileCompleted) {
-            setInitialRoute('MainApp');
-          } else {
-            // Profile exists but not completed, continue with UserProfile
+          
+          // Check if basic profile is completed
+          if (!profile.profileCompleted) {
             setInitialRoute('UserProfile');
+          } else if (!profile.academicSetupCompleted) {
+            // Profile completed but academic setup not done
+            setInitialRoute('Statistics');
+          } else {
+            // Everything completed, go to main app
+            setInitialRoute('MainApp');
           }
         }
       }
@@ -107,6 +124,7 @@ function AppContent() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="UserProfile" component={UserProfileScreen} />
+        <Stack.Screen name="Statistics" component={StatisticsScreen} />
         <Stack.Screen name="MainApp" component={DrawerNavigator} />
       </Stack.Navigator>
     </NavigationContainer>

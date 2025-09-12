@@ -266,12 +266,12 @@ export default function SettingsScreen({ navigation }) {
                   marginRight: 16
                 }}>
                   <Text style={{ color: theme.colors.textOnPrimary, fontSize: 18, fontWeight: 'bold' }}>
-                    {userProfile.nombre?.charAt(0)}{userProfile.apellido?.charAt(0)}
+                    {userProfile?.nombre?.charAt(0) || ''}{userProfile?.apellidos?.charAt(0) || ''}
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.textPrimary, { fontSize: 18, fontWeight: 'bold' }]}>
-                    {userProfile.nombre} {userProfile.apellido}
+                    {userProfile?.nombre || ''} {userProfile?.apellidos || ''}
                   </Text>
                   <Text style={styles.textSecondary}>{userProfile.carrera}</Text>
                   <Text style={styles.textTertiary}>{userProfile.matricula}</Text>

@@ -195,6 +195,125 @@ export const createThemedStyles = (theme) => {
       fontSize: 16,
       marginTop: 16,
     },
+
+    // Statistics Screen Styles
+    sectionTitle: {
+      color: theme.colors.text,
+      fontSize: 18,
+      fontWeight: '600',
+    },
+    
+    // Selection Buttons
+    selectionButton: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 16,
+      borderWidth: 2,
+      borderColor: theme.colors.border,
+      alignItems: 'center',
+    },
+    selectedButton: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary + '10',
+    },
+    selectionIcon: {
+      fontSize: 32,
+      marginBottom: 8,
+    },
+    selectionTitle: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: '600',
+      marginBottom: 4,
+    },
+    selectionDescription: {
+      color: theme.colors.textSecondary,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    selectedText: {
+      color: theme.colors.primary,
+    },
+
+    // Division Buttons
+    divisionButton: {
+      backgroundColor: theme.colors.card,
+      borderRadius: 12,
+      padding: 16,
+      width: '48%',
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      alignItems: 'center',
+    },
+    selectedDivisionButton: {
+      borderColor: theme.colors.primary,
+      backgroundColor: theme.colors.primary + '10',
+    },
+    divisionIcon: {
+      fontSize: 24,
+      marginBottom: 8,
+    },
+    divisionTitle: {
+      color: theme.colors.text,
+      fontSize: 14,
+      fontWeight: '500',
+      textAlign: 'center',
+    },
+    selectedDivisionText: {
+      color: theme.colors.primary,
+    },
+
+    // Input Group
+    inputGroup: {
+      marginBottom: 20,
+    },
+    inputLabel: {
+      color: theme.colors.text,
+      fontSize: 16,
+      fontWeight: '500',
+      marginBottom: 8,
+    },
+    textInput: {
+      backgroundColor: theme.colors.inputBackground,
+      borderWidth: 1,
+      borderColor: theme.colors.inputBorder,
+      borderRadius: 12,
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      fontSize: 16,
+      color: theme.colors.inputText,
+    },
+    inputHelper: {
+      color: theme.colors.textSecondary,
+      fontSize: 12,
+      marginTop: 4,
+    },
+
+    // Primary and Secondary Buttons
+    primaryButton: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    secondaryButton: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: 16,
+      paddingVertical: 16,
+      paddingHorizontal: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    buttonText: {
+      fontSize: 16,
+      fontWeight: '600',
+    },
   });
 };
 
